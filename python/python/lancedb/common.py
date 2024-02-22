@@ -34,3 +34,7 @@ class Credential(str):
 
     def __str__(self) -> str:
         return "********"
+
+
+def sanitize_uri(uri: URI) -> str:
+    return str(uri)

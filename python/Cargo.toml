@@ -1,0 +1,19 @@
+[package]
+name = "lancedb-python"
+version = "0.4.10"
+edition = "2021"
+authors = ["Lance Devs <dev@lancedb.com>"]
+rust-version = "1.65"
+
+[lib]
+name = "_lancedb"
+crate-type = ["cdylib"]
+
+[dependencies]
+lancedb = { path = "../rust/lancedb" }
+env_logger = "0.10"
+pyo3 = { version = "0.20", features = ["extension-module", "abi3-py38"] }
+pyo3-asyncio = { version = "0.20", features = ["attributes", "tokio-runtime"] }
+
+# Prevent dynamic linking of lzma, which comes from datafusion
+lzma-sys = { version = "*", features = ["static"] }
