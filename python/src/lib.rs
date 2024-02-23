@@ -16,11 +16,11 @@ use connection::{connect, Connection};
 use env_logger::Env;
 use pyo3::{pymodule, types::PyModule, wrap_pyfunction, PyResult, Python};
 
-mod connection;
+pub mod connection;
 pub(crate) mod error;
 
 #[pymodule]
-fn _lancedb(_py: Python, m: &PyModule) -> PyResult<()> {
+pub fn _lancedb(_py: Python, m: &PyModule) -> PyResult<()> {
     let env = Env::new()
         .filter_or("LANCEDB_LOG", "warn")
         .write_style("LANCEDB_LOG_STYLE");

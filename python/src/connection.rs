@@ -30,20 +30,20 @@ impl Connection {
     pub fn table_names(self_: PyRef<'_, Self>) -> PyResult<&PyAny> {
         let inner = self_.inner.clone();
         future_into_py(self_.py(), async move {
-            Ok(inner.table_names().await.infer_error()?)
+            inner.table_names().await.infer_error()
         })
     }
 }
 
 #[pyfunction]
-pub fn connect<'p>(
-    py: Python<'p>,
+pub fn connect(
+    py: Python,
     uri: String,
     api_key: Option<String>,
     region: Option<String>,
     host_override: Option<String>,
     read_consistency_interval: Option<f64>,
-) -> PyResult<&'p PyAny> {
+) -> PyResult<&PyAny> {
     future_into_py(py, async move {
         let mut builder = lancedb::connect(&uri);
         if let Some(api_key) = api_key {

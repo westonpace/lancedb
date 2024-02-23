@@ -1,9 +1,13 @@
 [package]
 name = "lancedb-python"
 version = "0.4.10"
-edition = "2021"
-authors = ["Lance Devs <dev@lancedb.com>"]
-rust-version = "1.65"
+edition.workspace = true
+description = "Python bindings for LanceDB"
+license.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
 
 [lib]
 name = "_lancedb"
