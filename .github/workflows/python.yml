@@ -51,16 +51,47 @@ jobs:
     - name: doctest
       run: pytest --doctest-modules lancedb
   platform:
-    name: "Platform: ${{ matrix.config.name }}"
+    name: "Mac: ${{ matrix.config.name }}"
     timeout-minutes: 30
     strategy:
       matrix:
         config:
-          - name: x86 Mac
+          - name: x86
             runner: macos-13
-          - name: Arm Mac
+          - name: Arm
             runner: macos-14
-          - name: x86 Windows
+    runs-on: "${{ matrix.config.runner }}"
+    defaults:
+      run:
+        shell: bash
+        working-directory: python
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        lfs: true
+    - name: Install protobuf
+      shell: bash
+      run: |
+        brew install protobuf
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+    - name: Install lancedb
+      run: |
+        pip install -e .[tests]
+        pip install tantivy@git+https://github.com/quickwit-oss/tantivy-py#164adc87e1a033117001cf70e38c82a53014d985
+        pip install pytest pytest-mock
+    - name: Run tests
+      run: pytest -m "not slow" -x -v --durations=30 tests
+  windows:
+    name: "Windows: ${{ matrix.config.name }}"
+    timeout-minutes: 30
+    strategy:
+      matrix:
+        config:
+          - name: x86
             runner: windows-latest
     runs-on: "${{ matrix.config.runner }}"
     defaults:
@@ -72,10 +103,15 @@ jobs:
       with:
         fetch-depth: 0
         lfs: true
-    - name: Install macos dependency
-      shell: bash
+    - name: Install Protoc v21.12
+      working-directory: C:\
       run: |
-        brew install protobuf
+        New-Item -Path 'C:\protoc' -ItemType Directory
+        Set-Location C:\protoc
+        Invoke-WebRequest https://github.com/protocolbuffers/protobuf/releases/download/v21.12/protoc-21.12-win64.zip -OutFile C:\protoc\protoc.zip
+        7z x protoc.zip
+        Add-Content $env:GITHUB_PATH "C:\protoc\bin"
+      shell: powershell
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
