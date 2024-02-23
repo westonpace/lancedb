@@ -15,6 +15,7 @@ concurrency:
 
 jobs:
   linux:
+    name: "Linux: python-3.${{ matrix.python-minor-version }}"
     timeout-minutes: 30
     strategy:
       matrix:
@@ -29,15 +30,18 @@ jobs:
       with:
         fetch-depth: 0
         lfs: true
+    - name: Install dependencies
+      run: |
+        sudo apt update
+        sudo apt install -y protobuf-compiler
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
         python-version: 3.${{ matrix.python-minor-version }}
     - name: Install lancedb
       run: |
-        pip install -e .[tests]
+        pip install -e .[tests,dev]
         pip install tantivy@git+https://github.com/quickwit-oss/tantivy-py#164adc87e1a033117001cf70e38c82a53014d985
-        pip install pytest pytest-mock ruff
     - name: Format check
       run: ruff format --check .
     - name: Lint
@@ -91,6 +95,10 @@ jobs:
       with:
         fetch-depth: 0
         lfs: true
+    - name: Install dependencies
+      run: |
+        sudo apt update
+        sudo apt install -y protobuf-compiler
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
@@ -100,7 +108,6 @@ jobs:
         pip install "pydantic<2"
         pip install -e .[tests]
         pip install tantivy@git+https://github.com/quickwit-oss/tantivy-py#164adc87e1a033117001cf70e38c82a53014d985
-        pip install pytest pytest-mock
     - name: Run tests
       run: pytest -m "not slow" -x -v --durations=30 tests
     - name: doctest
