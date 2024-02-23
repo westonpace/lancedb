@@ -40,7 +40,7 @@ jobs:
         python-version: 3.${{ matrix.python-minor-version }}
     - name: Install lancedb
       run: |
-        pip install -e .[tests,dev]
+        pip install -e .[tests,dev,embeddings]
         pip install tantivy@git+https://github.com/quickwit-oss/tantivy-py#164adc87e1a033117001cf70e38c82a53014d985
     - name: Format check
       run: ruff format --check .
