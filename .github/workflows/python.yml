@@ -72,6 +72,10 @@ jobs:
       with:
         fetch-depth: 0
         lfs: true
+    - name: Install macos dependency
+      shell: bash
+      run: |
+        brew install protobuf
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
