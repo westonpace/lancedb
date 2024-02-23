@@ -11,12 +11,11 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
+import lancedb
 import numpy as np
 import pandas as pd
 import pyarrow as pa
 import pytest
-
-import lancedb
 from lancedb.pydantic import LanceModel, Vector
 
 
