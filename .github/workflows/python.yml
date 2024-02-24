@@ -58,7 +58,7 @@ jobs:
         with:
           fetch-depth: 0
           lfs: true
-      - name: Install dependencies
+      - name: Install protobuf
         run: |
           sudo apt update
           sudo apt install -y protobuf-compiler
@@ -95,10 +95,6 @@ jobs:
         with:
           fetch-depth: 0
           lfs: true
-      - name: Install protobuf
-        shell: bash
-        run: |
-          brew install protobuf
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -130,15 +126,6 @@ jobs:
         with:
           fetch-depth: 0
           lfs: true
-      - name: Install Protoc v21.12
-        working-directory: C:\
-        run: |
-          New-Item -Path 'C:\protoc' -ItemType Directory
-          Set-Location C:\protoc
-          Invoke-WebRequest https://github.com/protocolbuffers/protobuf/releases/download/v21.12/protoc-21.12-win64.zip -OutFile C:\protoc\protoc.zip
-          7z x protoc.zip
-          Add-Content $env:GITHUB_PATH "C:\protoc\bin"
-        shell: powershell
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
