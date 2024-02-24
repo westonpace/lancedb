@@ -56,8 +56,3 @@ runs:
           curl -L https://github.com/protocolbuffers/protobuf/releases/download/v24.4/protoc-24.4-linux-$PROTOC_ARCH.zip > /tmp/protoc.zip \
             && unzip /tmp/protoc.zip -d /usr/local \
             && rm /tmp/protoc.zip
-    - uses: actions/upload-artifact@v4
-      if: ${{ inputs.arm-build == 'false' }}
-      with:
-        name: linux-wheels
-        path: target/wheels/*
