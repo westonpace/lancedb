@@ -9,15 +9,12 @@ runs:
   using: "composite"
   steps:
     - name: Install lancedb
-      working-directory: python
       shell: bash
       run: |
-        pip3 install $(ls ../target/wheels/lancedb-*.whl)[tests,dev,embeddings]
+        pip3 install $(ls target/wheels/lancedb-*.whl)[tests,dev,embeddings]
     - name: pytest
       shell: bash
-      working-directory: python
-      run: pytest -m "not slow" -x -v --durations=30 python/tests
+      run: pytest -m "not slow" -x -v --durations=30 python/python/tests
     - name: doctest
       shell: bash
-      working-directory: python
-      run: pytest --doctest-modules python/lancedb
+      run: pytest --doctest-modules python/python/lancedb
