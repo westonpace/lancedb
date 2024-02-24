@@ -27,17 +27,13 @@ jobs:
         with:
           fetch-depth: 0
           lfs: true
-      - name: Install dependencies
-        run: |
-          sudo apt update
-          sudo apt install -y protobuf-compiler
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Install lancedb
+      - name: Install ruff
         run: |
-          pip install -e .[dev]
+          pip install ruff
       - name: Format check
         run: ruff format --check .
       - name: Lint
