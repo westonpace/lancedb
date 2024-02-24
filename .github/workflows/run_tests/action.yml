@@ -15,11 +15,6 @@ runs:
     - name: pytest
       shell: bash
       run: python -mpytest -m "not slow" -x -v --durations=30 python/python/tests
-    - name: debug
-      shell: bash
-      run: |
-        python -c "import lancedb; print(lancedb.__file__)"
-        find /opt/hostedtoolcache/Python/3.11.8/x64/lib/python3.11/site-packages/lancedb
     - name: doctest
       shell: bash
       run: python -mpytest --doctest-modules python/python/lancedb
