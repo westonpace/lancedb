@@ -75,7 +75,6 @@ embeddings = [
     "open-clip-torch",
     "cohere",
     "huggingface_hub",
-    "mlx",
     "InstructorEmbedding",
     "google.generativeai",
     "boto3>=1.28.57",
