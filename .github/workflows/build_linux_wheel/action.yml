@@ -60,4 +60,4 @@ runs:
       if: ${{ inputs.arm-build == 'false' }}
       with:
         name: linux-wheels
-        path: python/target/wheels
+        path: target/wheels/*
