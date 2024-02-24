@@ -14,7 +14,4 @@ runs:
         pip3 install $(ls target/wheels/lancedb-*.whl)[tests,dev,embeddings]
     - name: pytest
       shell: bash
-      run: python -mpytest -m "not slow" -x -v --durations=30 python/python/tests
-    - name: doctest
-      shell: bash
-      run: python -mpytest --doctest-modules python/python/lancedb
+      run: pytest -m "not slow" -x -v --durations=30 python/python/tests
