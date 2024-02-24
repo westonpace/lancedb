@@ -49,10 +49,10 @@ jobs:
         if: ${{ inputs.dry_run }} == "false"
         uses: ad-m/github-push-action@master
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ secrets.WESTON_TOKEN }}
           branch: main
           tags: true
       - uses: ./.github/workflows/update_package_lock
         if: ${{ inputs.dry_run }} == "false"
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ secrets.WESTON_TOKEN }}
