@@ -101,7 +101,7 @@ jobs:
       - uses: ./.github/workflows/run_tests
       # Make sure wheels are not included in the Rust cache
       - name: Delete wheels
-        run: sudo rm -rf target/wheels
+        run: rm -rf target/wheels
   platform:
     name: "Mac: ${{ matrix.config.name }}"
     timeout-minutes: 30
@@ -133,7 +133,7 @@ jobs:
       - uses: ./.github/workflows/run_tests
       # Make sure wheels are not included in the Rust cache
       - name: Delete wheels
-        run: sudo rm -rf target/wheels
+        run: rm -rf target/wheels
   windows:
     name: "Windows: ${{ matrix.config.name }}"
     timeout-minutes: 30
@@ -163,7 +163,7 @@ jobs:
       - uses: ./.github/workflows/run_tests
       # Make sure wheels are not included in the Rust cache
       - name: Delete wheels
-        run: sudo rm -rf target/wheels
+        run: rm -rf target/wheels
   pydantic1x:
     timeout-minutes: 30
     runs-on: "ubuntu-22.04"
