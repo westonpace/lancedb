@@ -803,6 +803,9 @@ def test_count_rows(db):
 
 
 def test_hybrid_search(db, tmp_path):
+    # This test uses an FTS index
+    pytest.importorskip("lancedb.fts")
+
     db = MockDB(str(tmp_path))
     # Create a LanceDB table schema with a vector and a text column
     emb = EmbeddingFunctionRegistry.get_instance().get("test")()

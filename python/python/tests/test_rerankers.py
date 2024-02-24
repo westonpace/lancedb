@@ -14,6 +14,9 @@ from lancedb.rerankers import (
 )
 from lancedb.table import LanceTable
 
+# Tests rely on FTS index
+pytest.importorskip("lancedb.fts")
+
 
 def get_test_table(tmp_path):
     db = lancedb.connect(tmp_path)
