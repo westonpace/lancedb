@@ -15,6 +15,9 @@ runs:
     - name: pytest
       shell: bash
       run: pytest -m "not slow" -x -v --durations=30 python/python/tests
+    - name: debug
+      shell: bash
+      run: python -c "import lancedb; print(lancedb.__file__)"
     - name: doctest
       shell: bash
       run: pytest --doctest-modules python/python/lancedb
