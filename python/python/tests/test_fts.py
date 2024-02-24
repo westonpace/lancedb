@@ -19,7 +19,8 @@ import lancedb.fts
 import numpy as np
 import pandas as pd
 import pytest
-import tantivy
+
+tantivy = pytest.importorskip("tantivy")
 
 
 @pytest.fixture
