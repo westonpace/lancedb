@@ -36,3 +36,11 @@ need to use `await` to call these functions.
 * Previously `Table.schema` was a property.  Now it is an async method.
 * The method `Table.__len__` was removed and `len(table)` will no longer
   work.  Use `Table.count_rows` instead.
+* The API for `create_index` and `create_scalar_index` has changed.
+  Calls that were previously `create_index(*common_args, *ivf_pq_args)`
+  are now `create_index(*common_args).vector().ivf_pq(*ivf_pq_args)`.
+  Calls that were previously `create_scalar_index(*common_args)` are
+  now `create_index(*common_args).scalar().btree()`.
+
+  This change is intended to make it easier to use new vector/scalar
+  indices in the future.

@@ -203,28 +203,28 @@ impl JsTable {
         if cx.argument::<JsBoolean>(1)?.value(&mut cx) {
             let filter = cx.argument_opt(2).unwrap();
             if filter.is_a::<JsNull, _>(&mut cx) {
-                builder.when_matched_update_all(None);
+                builder.when_matched_update();
             } else {
                 let filter = filter
                     .downcast_or_throw::<JsString, _>(&mut cx)?
                     .deref()
                     .value(&mut cx);
-                builder.when_matched_update_all(Some(filter));
+                builder.when_matched_update().only_if(filter);
             }
         }
         if cx.argument::<JsBoolean>(3)?.value(&mut cx) {
-            builder.when_not_matched_insert_all();
+            builder.when_not_matched_insert();
         }
         if cx.argument::<JsBoolean>(4)?.value(&mut cx) {
             let filter = cx.argument_opt(5).unwrap();
             if filter.is_a::<JsNull, _>(&mut cx) {
-                builder.when_not_matched_by_source_delete(None);
+                return cx.throw_error("A filter must be provided when deleting rows");
             } else {
                 let filter = filter
                     .downcast_or_throw::<JsString, _>(&mut cx)?
                     .deref()
                     .value(&mut cx);
-                builder.when_not_matched_by_source_delete(Some(filter));
+                builder.when_not_matched_by_source_delete(filter);
             }
         }
 

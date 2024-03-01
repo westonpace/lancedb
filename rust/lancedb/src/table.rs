@@ -30,8 +30,10 @@ use lance::dataset::scanner::{DatasetRecordBatchStream, Scanner};
 pub use lance::dataset::ColumnAlteration;
 pub use lance::dataset::NewColumnTransform;
 pub use lance::dataset::ReadParams;
-use lance::dataset::{Dataset, UpdateBuilder, WhenMatched, WriteMode, WriteParams};
-use lance::dataset::{MergeInsertBuilder as LanceMergeInsertBuilder, WhenNotMatchedBySource};
+use lance::dataset::{
+    Dataset, UpdateBuilder, WhenNotMatched, WhenNotMatchedBySource, WriteMode, WriteParams,
+};
+use lance::dataset::{MergeInsertBuilder as LanceMergeInsertBuilder, WhenMatched};
 use lance::io::WrappingObjectStore;
 use lance_index::IndexType;
 use lance_index::{optimize::OptimizeOptions, DatasetIndexExt};
@@ -47,7 +49,7 @@ use crate::query::{Query, Select, DEFAULT_TOP_K};
 use crate::utils::{default_vector_column, PatchReadParam, PatchWriteParam};
 
 use self::dataset::DatasetConsistencyWrapper;
-use self::merge::MergeInsertBuilder;
+use self::merge::{MergeInsertBuilder, WhenNotMatchedBySourceBuilder};
 
 pub(crate) mod dataset;
 pub mod merge;
@@ -413,16 +415,15 @@ impl Table {
     /// );
     /// // Perform an upsert operation
     /// let mut merge_insert = tbl.merge_insert(&["id"]);
-    /// merge_insert
-    ///     .when_matched_update_all(None)
-    ///     .when_not_matched_insert_all();
+    /// merge_insert.when_matched_update();
+    /// merge_insert.when_not_matched_insert();
     /// merge_insert.execute(Box::new(new_data)).await.unwrap();
     /// # });
     /// ```
-    pub fn merge_insert(&self, on: &[&str]) -> MergeInsertBuilder {
+    pub fn merge_insert(&self, on: &[impl AsRef<str>]) -> MergeInsertBuilder {
         MergeInsertBuilder::new(
             self.inner.clone(),
-            on.iter().map(|s| s.to_string()).collect(),
+            on.iter().map(|s| s.as_ref().to_string()).collect(),
         )
     }
 
@@ -1023,29 +1024,26 @@ impl TableInternal for NativeTable {
     ) -> Result<()> {
         let dataset = Arc::new(self.dataset.get().await?.clone());
         let mut builder = LanceMergeInsertBuilder::try_new(dataset.clone(), params.on)?;
-        match (
-            params.when_matched_update_all,
-            params.when_matched_update_all_filt,
-        ) {
-            (false, _) => builder.when_matched(WhenMatched::DoNothing),
-            (true, None) => builder.when_matched(WhenMatched::UpdateAll),
-            (true, Some(filt)) => builder.when_matched(WhenMatched::update_if(&dataset, &filt)?),
+        match params.when_matched {
+            None => builder.when_matched(WhenMatched::DoNothing),
+            Some(when_matched) => match when_matched.condition {
+                None => builder.when_matched(WhenMatched::UpdateAll),
+                Some(filter) => builder.when_matched(WhenMatched::update_if(&dataset, &filter)?),
+            },
         };
-        if params.when_not_matched_insert_all {
-            builder.when_not_matched(lance::dataset::WhenNotMatched::InsertAll);
-        } else {
-            builder.when_not_matched(lance::dataset::WhenNotMatched::DoNothing);
-        }
-        if params.when_not_matched_by_source_delete {
-            let behavior = if let Some(filter) = params.when_not_matched_by_source_delete_filt {
-                WhenNotMatchedBySource::delete_if(dataset.as_ref(), &filter)?
-            } else {
-                WhenNotMatchedBySource::Delete
-            };
-            builder.when_not_matched_by_source(behavior);
-        } else {
-            builder.when_not_matched_by_source(WhenNotMatchedBySource::Keep);
-        }
+        match params.when_not_matched {
+            None => builder.when_not_matched(WhenNotMatched::DoNothing),
+            Some(_) => builder.when_not_matched(WhenNotMatched::InsertAll),
+        };
+        match params.when_not_matched_by_source {
+            None => builder.when_not_matched_by_source(WhenNotMatchedBySource::Keep),
+            Some(when_not_matched_by_source) => match when_not_matched_by_source {
+                WhenNotMatchedBySourceBuilder::Delete(filter) => builder
+                    .when_not_matched_by_source(WhenNotMatchedBySource::delete_if(
+                        &dataset, &filter,
+                    )?),
+            },
+        };
         let job = builder.try_build()?;
         let new_dataset = job.execute_reader(new_data).await?;
         self.dataset.set_latest(new_dataset.as_ref().clone()).await;
@@ -1372,7 +1370,7 @@ mod tests {
 
         // Perform a "insert if not exists"
         let mut merge_insert_builder = table.merge_insert(&["i"]);
-        merge_insert_builder.when_not_matched_insert_all();
+        merge_insert_builder.when_not_matched_insert();
         merge_insert_builder.execute(new_batches).await.unwrap();
         // Only 5 rows should actually be inserted
         assert_eq!(table.count_rows(None).await.unwrap(), 15);
@@ -1381,7 +1379,7 @@ mod tests {
         let new_batches = Box::new(merge_insert_test_batches(15, 2));
         // Perform a "bulk update" (should not affect anything)
         let mut merge_insert_builder = table.merge_insert(&["i"]);
-        merge_insert_builder.when_matched_update_all(None);
+        merge_insert_builder.when_matched_update();
         merge_insert_builder.execute(new_batches).await.unwrap();
         // No new rows should have been inserted
         assert_eq!(table.count_rows(None).await.unwrap(), 15);
@@ -1393,7 +1391,9 @@ mod tests {
         // Conditional update that only replaces the age=0 data
         let new_batches = Box::new(merge_insert_test_batches(5, 3));
         let mut merge_insert_builder = table.merge_insert(&["i"]);
-        merge_insert_builder.when_matched_update_all(Some("target.age = 0".to_string()));
+        merge_insert_builder
+            .when_matched_update()
+            .only_if("target.age = 0");
         merge_insert_builder.execute(new_batches).await.unwrap();
         assert_eq!(
             table.count_rows(Some("age = 3".to_string())).await.unwrap(),

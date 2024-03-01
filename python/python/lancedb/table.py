@@ -397,6 +397,34 @@ class Table(ABC):
             source table and target table are matched.  Typically this is some
             kind of key or id column.
 
+        table.merge_insert("a")
+             # Conditional partial update
+             .when_matched(columns=["b", "c"], condition="d > 5")
+             # Conditional full update
+             .when_matched(condition="d > 5")
+             # Unconditional partial update
+             .when_matched(columns=["b", "c"])
+             # Unconditional full update
+             .when_matched()
+
+        table.merge_insert("a")
+             .when_matched(WhenMatched::UpdateAll)
+             .when_matched(WhenMatched::UpdateIf("d > 5"))
+             .when_matched(WhenMatched::UpdateSome(["b", "c"]))
+             .when_matched(WhenMatched::UpdateSomeIf(["b", "c"], "d > 5"))
+
+        let merge_insert = table.merge_insert("a");
+        merge_insert.when_matched_update();
+        merge_insert.when_matched_update().only_if("d > 5").execute(new_data);
+        merge_insert.when_matched_update().using({"b": "source.b + target.b"}).execute(new_data);
+        merge_insert.when_matched_update().only_if("d > 5").using({"b": "source.b + target.b"}).execute(new_data);
+
+        table.merge_insert("a")
+             .when_matched(Condition::None, Update::All)
+             .when_matched(Condition::Some("d > 5"), Update::All)
+             .when_matched(Condition::None, Update::Some(["b", "c"]))
+             .when_matched(Condition::Some("d > 5"), Update::Some(["b", "c"]))
+
         Examples
         --------
         >>> import lancedb
