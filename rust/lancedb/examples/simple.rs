@@ -143,10 +143,12 @@ async fn create_empty_table(db: &Connection) -> Result<LanceDbTable> {
 async fn create_index(table: &LanceDbTable) -> Result<()> {
     // --8<-- [start:create_index]
     table
-        .create_index(&["vector"])
+        .create_index()
+        .column("vector")
+        .vector()
         .ivf_pq()
         .num_partitions(8)
-        .build()
+        .execute()
         .await
     // --8<-- [end:create_index]
 }

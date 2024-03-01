@@ -64,7 +64,6 @@ mod tests {
 
     use super::*;
     use arrow_array::{Float32Array, Int64Array, RecordBatch};
-    use arrow_ipc::writer::StreamWriter;
     use arrow_schema::{DataType, Field, Schema};
     use std::sync::Arc;
 

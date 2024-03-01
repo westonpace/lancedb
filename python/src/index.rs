@@ -17,40 +17,41 @@ use lancedb::index::{
     ScalarIndexBuilder as LanceDbScalarIndexBuilder,
     VectorIndexBuilder as LanceDbVectorIndexBuilder,
 };
-use napi_derive::napi;
+use pyo3::{exceptions::PyValueError, pyclass, pymethods, PyAny, PyRef, PyResult};
+use pyo3_asyncio::tokio::future_into_py;
 
-use crate::error::NapiErrorExt;
-use crate::util::BuilderWrapper;
+use crate::{error::PythonErrorExt, util::BuilderWrapper};
 
-#[napi]
+#[pyclass]
 pub struct VectorIndexBuilder {
     inner: BuilderWrapper<LanceDbVectorIndexBuilder>,
 }
 
-#[napi]
 impl VectorIndexBuilder {
     fn new(inner: LanceDbVectorIndexBuilder) -> Self {
         Self {
             inner: BuilderWrapper::new("VectorIndexBuilder", inner),
         }
     }
+}
 
-    #[napi]
-    pub async fn ivf_pq(
-        &self,
+#[pymethods]
+impl VectorIndexBuilder {
+    pub fn ivf_pq(
+        self_: PyRef<'_, Self>,
         distance_type: Option<String>,
         num_partitions: Option<u32>,
         num_sub_vectors: Option<u32>,
         max_iterations: Option<u32>,
         sample_rate: Option<u32>,
-    ) -> napi::Result<()> {
-        let mut ivf_pq_builder = self.inner.consume(|b| b.ivf_pq())?;
+    ) -> PyResult<&PyAny> {
+        let mut ivf_pq_builder = self_.inner.consume(|b| b.ivf_pq())?;
         if let Some(distance_type) = distance_type {
             let distance_type = match distance_type.as_str() {
                 "l2" => Ok(DistanceType::L2),
                 "cosine" => Ok(DistanceType::Cosine),
                 "dot" => Ok(DistanceType::Dot),
-                _ => Err(napi::Error::from_reason(format!(
+                _ => Err(PyValueError::new_err(format!(
                     "Invalid distance type '{}'.  Must be one of l2, cosine, or dot",
                     distance_type
                 ))),
@@ -69,50 +70,56 @@ impl VectorIndexBuilder {
         if let Some(sample_rate) = sample_rate {
             ivf_pq_builder = ivf_pq_builder.sample_rate(sample_rate);
         }
-        Ok(ivf_pq_builder.execute().await.default_error()?)
+
+        future_into_py(self_.py(), async move {
+            Ok(ivf_pq_builder.execute().await.infer_error()?)
+        })
     }
 }
 
-#[napi]
+#[pyclass]
 pub struct ScalarIndexBuilder {
     inner: BuilderWrapper<LanceDbScalarIndexBuilder>,
 }
 
-#[napi]
 impl ScalarIndexBuilder {
     fn new(inner: LanceDbScalarIndexBuilder) -> Self {
         Self {
             inner: BuilderWrapper::new("ScalarIndexBuilder", inner),
         }
     }
+}
 
-    #[napi]
-    pub async fn btree(&self) -> napi::Result<()> {
-        let btree_builder = self.inner.consume(|b| b.btree())?;
-        Ok(btree_builder.execute().await.default_error()?)
+#[pymethods]
+impl ScalarIndexBuilder {
+    pub fn btree(self_: PyRef<'_, Self>) -> PyResult<&PyAny> {
+        let btree_builder = self_.inner.consume(|b| b.btree())?;
+        future_into_py(self_.py(), async move {
+            Ok(btree_builder.execute().await.infer_error()?)
+        })
     }
 }
 
-#[napi]
+#[pyclass]
 pub struct IndexBuilder {
     inner: BuilderWrapper<LanceDbIndexBuilder>,
 }
 
-#[napi]
 impl IndexBuilder {
     pub(crate) fn new(inner: LanceDbIndexBuilder) -> Self {
         Self {
             inner: BuilderWrapper::new("IndexBuilder", inner),
         }
     }
+}
 
-    #[napi]
-    pub fn scalar(&self) -> napi::Result<ScalarIndexBuilder> {
+#[pymethods]
+impl IndexBuilder {
+    pub fn scalar(&self) -> PyResult<ScalarIndexBuilder> {
         Ok(ScalarIndexBuilder::new(self.inner.consume(|b| b.scalar())?))
     }
 
-    #[napi]
-    pub fn vector(&self) -> napi::Result<VectorIndexBuilder> {
+    pub fn vector(&self) -> PyResult<VectorIndexBuilder> {
         Ok(VectorIndexBuilder::new(self.inner.consume(|b| b.vector())?))
     }
 }

@@ -5,7 +5,7 @@ use lance::dataset::{scanner::DatasetRecordBatchStream, ColumnAlteration, NewCol
 
 use crate::{
     error::Result,
-    index::IndexBuilder,
+    index::{BTreeIndexBuilder, IvfPqIndexBuilder},
     query::Query,
     table::{
         merge::MergeInsertBuilder, AddDataBuilder, NativeTable, OptimizeAction, OptimizeStats,
@@ -51,23 +51,26 @@ impl TableInternal for RemoteTable {
     async fn count_rows(&self, _filter: Option<String>) -> Result<usize> {
         todo!()
     }
-    async fn do_add(&self, _add: AddDataBuilder) -> Result<()> {
+    async fn add(&self, _add: AddDataBuilder) -> Result<()> {
         todo!()
     }
-    async fn do_query(&self, _query: &Query) -> Result<DatasetRecordBatchStream> {
+    async fn query(&self, _query: &Query) -> Result<DatasetRecordBatchStream> {
         todo!()
     }
     async fn delete(&self, _predicate: &str) -> Result<()> {
         todo!()
     }
-    async fn do_create_index(&self, _index: IndexBuilder) -> Result<()> {
+    async fn create_ivf_pq_index(&self, _index: IvfPqIndexBuilder) -> Result<()> {
         todo!()
     }
-    async fn do_merge_insert(
+    async fn merge_insert(
         &self,
         _params: MergeInsertBuilder,
         _new_data: Box<dyn RecordBatchReader + Send>,
     ) -> Result<()> {
+        todo!()
+    }
+    async fn create_btree_index(&self, _index: BTreeIndexBuilder) -> Result<()> {
         todo!()
     }
     async fn optimize(&self, _action: OptimizeAction) -> Result<OptimizeStats> {

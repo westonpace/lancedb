@@ -41,7 +41,7 @@ describe("Given a table", () => {
 
   it("be displayable", async () => {
     expect(table.display()).toMatch(
-      /NativeTable\(some_table, uri=.*, read_consistency_interval=None\)/,
+      /NativeTable\(some_table, uri=.*, read_consistency_interval=None\)/
     );
     table.close();
     expect(table.display()).toBe("ClosedTable(some_table)");
@@ -92,10 +92,10 @@ describe("Test creating index", () => {
         })),
       {
         schema,
-      },
+      }
     );
     const tbl = await db.createTable("test", data);
-    await tbl.createIndex().build();
+    await tbl.createIndex().vector().ivf_pq();
 
     // check index directory
     const indexDir = path.join(tmpDir.name, "test.lance", "_indices");
@@ -103,12 +103,12 @@ describe("Test creating index", () => {
     // TODO: check index type.
 
     // Search without specifying the column
-    let query_vector = data.toArray()[5].vec.toJSON();
-    let rst = await tbl.query().nearestTo(query_vector).limit(2).toArrow();
+    const query_vector = data.toArray()[5].vec.toJSON();
+    const rst = await tbl.query().nearestTo(query_vector).limit(2).toArrow();
     expect(rst.numRows).toBe(2);
 
     // Search with specifying the column
-    let rst2 = await tbl.search(query_vector, "vec").limit(2).toArrow();
+    const rst2 = await tbl.search(query_vector, "vec").limit(2).toArrow();
     expect(rst2.numRows).toBe(2);
     expect(rst.toString()).toEqual(rst2.toString());
   });
@@ -120,13 +120,13 @@ describe("Test creating index", () => {
       makeArrowTable([
         { id: 1, val: 2 },
         { id: 2, val: 3 },
-      ]),
+      ])
     );
-    await expect(tbl.createIndex().build()).rejects.toThrow(
-      "No vector column found",
+    await expect(tbl.createIndex().vector().ivf_pq()).rejects.toThrow(
+      "No vector columns found"
     );
 
-    await tbl.createIndex("val").build();
+    await tbl.createIndex({ column: "val" }).scalar().btree();
     const indexDir = path.join(tmpDir.name, "no_vec.lance", "_indices");
     expect(fs.readdirSync(indexDir)).toHaveLength(1);
 
@@ -142,7 +142,7 @@ describe("Test creating index", () => {
       new Field("vec", new FixedSizeList(32, new Field("item", new Float32()))),
       new Field(
         "vec2",
-        new FixedSizeList(64, new Field("item", new Float32())),
+        new FixedSizeList(64, new Field("item", new Float32()))
       ),
     ]);
     const tbl = await db.createTable(
@@ -159,25 +159,25 @@ describe("Test creating index", () => {
               .fill(1)
               .map(() => Math.random()),
           })),
-        { schema },
-      ),
+        { schema }
+      )
     );
 
     // Only build index over v1
-    await expect(tbl.createIndex().build()).rejects.toThrow(
-      /.*More than one vector columns found.*/,
+    await expect(tbl.createIndex().vector().ivf_pq()).rejects.toThrow(
+      "Multiple vector columns"
     );
     tbl
-      .createIndex("vec")
-      .ivf_pq({ num_partitions: 2, num_sub_vectors: 2 })
-      .build();
+      .createIndex({ column: "vec" })
+      .vector()
+      .ivf_pq({ num_partitions: 2, num_sub_vectors: 2 });
 
     const rst = await tbl
       .query()
       .nearestTo(
         Array(32)
           .fill(1)
-          .map(() => Math.random()),
+          .map(() => Math.random())
       )
       .limit(2)
       .toArrow();
@@ -190,10 +190,10 @@ describe("Test creating index", () => {
           Array(64)
             .fill(1)
             .map(() => Math.random()),
-          "vec",
+          "vec"
         )
         .limit(2)
-        .toArrow(),
+        .toArrow()
     ).rejects.toThrow(/.*does not match the dimension.*/);
 
     const query64 = Array(64)
@@ -218,10 +218,10 @@ describe("Test creating index", () => {
         })),
       {
         schema,
-      },
+      }
     );
     const tbl = await db.createTable("test", data);
-    await tbl.createIndex("id").build();
+    await tbl.createIndex({ column: "id" }).scalar().btree();
 
     // check index directory
     const indexDir = path.join(tmpDir.name, "test.lance", "_indices");
@@ -292,7 +292,7 @@ describe("schema evolution", function () {
       new Field(
         "vector",
         new FixedSizeList(2, new Field("item", new Float32(), true)),
-        true,
+        true
       ),
       new Field("price", new Float32(), false),
     ]);
@@ -306,7 +306,7 @@ describe("schema evolution", function () {
       new Field(
         "vector",
         new FixedSizeList(2, new Field("item", new Float32(), true)),
-        true,
+        true
       ),
       new Field("price", new Float64(), false),
     ]);
@@ -329,7 +329,7 @@ describe("schema evolution", function () {
       new Field(
         "vector",
         new FixedSizeList(2, new Field("item", new Float32(), true)),
-        true,
+        true
       ),
       new Field("price", new Float64(), true),
     ]);

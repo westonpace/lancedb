@@ -18,15 +18,16 @@ import {
   ConnectionOptions,
 } from "./native.js";
 
+export { ConnectionOptions, WriteOptions, Query } from "./native.js";
+export { Connection, CreateTableOptions } from "./connection";
+export { Table, AddDataOptions } from "./table";
 export {
-  ConnectionOptions,
-  WriteOptions,
-  Query,
-  MetricType,
-} from "./native.js";
-export { Connection } from "./connection";
-export { Table } from "./table";
-export { IvfPQOptions, IndexBuilder } from "./indexer";
+  IvfPQOptions,
+  IndexBuilder,
+  IndexOptions,
+  ScalarIndexBuilder,
+  VectorIndexBuilder,
+} from "./indexer";
 
 /**
  * Connect to a LanceDB instance at the given URI.
@@ -43,7 +44,7 @@ export { IvfPQOptions, IndexBuilder } from "./indexer";
  */
 export async function connect(
   uri: string,
-  opts?: Partial<ConnectionOptions>,
+  opts?: Partial<ConnectionOptions>
 ): Promise<Connection> {
   opts = opts ?? {};
   const nativeConn = await LanceDbConnection.new(uri, opts);

@@ -134,10 +134,12 @@
 //! # let tmpdir = tempfile::tempdir().unwrap();
 //! # let db = lancedb::connect(tmpdir.path().to_str().unwrap()).execute().await.unwrap();
 //! # let tbl = db.open_table("idx_test").execute().await.unwrap();
-//! tbl.create_index(&["vector"])
+//! tbl.create_index()
+//!     .column("vector")
+//!     .vector()
 //!     .ivf_pq()
 //!     .num_partitions(256)
-//!     .build()
+//!     .execute()
 //!     .await
 //!     .unwrap();
 //! # });
@@ -181,6 +183,7 @@
 //! # });
 //! ```
 
+pub mod arrow;
 pub mod connection;
 pub mod data;
 pub mod error;

@@ -33,9 +33,12 @@ pub fn table_create_scalar_index(mut cx: FunctionContext) -> JsResult<JsPromise>
 
     rt.spawn(async move {
         let idx_result = table
-            .create_index(&[&column])
+            .create_index()
+            .column(column)
             .replace(replace)
-            .build()
+            .scalar()
+            .btree()
+            .execute()
             .await;
 
         deferred.settle_with(&channel, move |mut cx| {

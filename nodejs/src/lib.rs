@@ -16,10 +16,12 @@ use connection::Connection;
 use napi_derive::*;
 
 mod connection;
+mod error;
 mod index;
 mod iterator;
 mod query;
 mod table;
+mod util;
 
 #[napi(object)]
 #[derive(Debug)]
