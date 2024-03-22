@@ -150,9 +150,9 @@ jobs:
         config:
           - arch: x86_64
             runner: ubuntu-latest
-          - arch: aarch64
-            # For successful fat LTO builds, we need a large runner to avoid OOM errors.
-            runner: buildjet-16vcpu-ubuntu-2204-arm
+          # - arch: aarch64
+          #   # For successful fat LTO builds, we need a large runner to avoid OOM errors.
+          #   runner: buildjet-16vcpu-ubuntu-2204-arm
     steps:
       - name: Checkout
         uses: actions/checkout@v4
