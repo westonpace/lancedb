@@ -15,7 +15,8 @@ prebuild_rust() {
 build_node_binaries() {
     pushd nodejs
     echo "Building nodejs library for $1"
-    npm run build-release -- --target $1
+    export RUST_TARGET=$1
+    npm run build-release
     popd
 }
 

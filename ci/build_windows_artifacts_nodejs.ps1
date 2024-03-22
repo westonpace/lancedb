@@ -24,7 +24,8 @@ function Build-NodeBinaries {
 
     Push-Location -Path "nodejs"
     Write-Host "Building nodejs library for $target"
-    npm run build-release -- --target $target
+    $env:RUST_TARGET=$target
+    npm run build-release
     Pop-Location
 }
 
