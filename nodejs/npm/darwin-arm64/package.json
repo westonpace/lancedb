@@ -7,11 +7,11 @@
   "cpu": [
     "arm64"
   ],
-  "main": "lancedb.darwin-arm64.node",
+  "main": "@lancedb/lancedb.darwin-arm64.node",
   "files": [
-    "lancedb.darwin-arm64.node"
+    "@lancedb/lancedb.darwin-arm64.node"
   ],
-  "license": "MIT",
+  "license": "Apache 2.0",
   "engines": {
     "node": ">= 18"
   }
