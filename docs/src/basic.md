@@ -19,7 +19,7 @@
 === "Typescript"
 
       ```shell
-      npm install lancedb
+      npm install @lancedb/lancedb
       ```
 
 === "Rust"
@@ -174,7 +174,7 @@ Once created, you can open a table as follows:
 === "Typescript"
 
     ```typescript
-    const tbl = await db.openTable("myTable");
+    --8<-- "docs/src/basic_legacy.ts:open_table"
     ```
 
 === "Rust"
@@ -194,7 +194,7 @@ If you forget the name of your table, you can always get a listing of all table 
 === "Javascript"
 
     ```javascript
-    console.log(await db.tableNames());
+    --8<-- "docs/src/basic_legacy.ts:list_names"
     ```
 
 === "Rust"
@@ -279,7 +279,7 @@ LanceDB allows you to create an ANN index on a table as follows:
 
 === "Typescript"
 
-    ```{.typescript .ignore}
+    ```typescript
     --8<-- "docs/src/basic_legacy.ts:create_index"
     ```
 
@@ -366,15 +366,15 @@ Use the `drop_table()` method on the database to remove a table.
     --8<-- "rust/lancedb/examples/simple.rs:drop_table"
     ```
 
-!!! note "Bundling `vectordb` apps with Webpack"
+!!! note "Bundling `lancedb` apps with Webpack"
 
-    If you're using the `vectordb` module in JavaScript, since LanceDB contains a prebuilt Node binary, you must configure `next.config.js` to exclude it from webpack. This is required for both using Next.js and deploying a LanceDB app on Vercel.
+    If you're using the `@lancedb/lancedb` module in JavaScript, since LanceDB contains a prebuilt Node binary, you must configure `next.config.js` to exclude it from webpack. This is required for both using Next.js and deploying a LanceDB app on Vercel.
 
     ```javascript
     /** @type {import('next').NextConfig} */
     module.exports = ({
     webpack(config) {
-        config.externals.push({ vectordb: 'vectordb' })
+        config.externals.push({ "@lancedb/lancedb": "@lancedb/lancedb" })
         return config;
     }
     })

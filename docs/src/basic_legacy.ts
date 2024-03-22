@@ -1,5 +1,5 @@
 // --8<-- [start:import]
-import * as lancedb from "lancedb";
+import * as lancedb from "@lancedb/lancedb";
 // --8<-- [end:import]
 import {
   Schema,
@@ -18,16 +18,23 @@ const example = async () => {
   const db = await lancedb.connect(uri);
   // --8<-- [end:open_db]
 
-  // --8<-- [start:create_table]
-  const tbl = await db.createTable(
-    "myTable",
-    [
+  // --8<-- [start:list_names]
+  const names = await db.tableNames();
+  // --8<-- [end:list_names]
+
+  // Separate scope to avoid shadowing
+  {
+    // --8<-- [start:create_table]
+    const tbl = await db.createTable("myTable", [
       { vector: [3.1, 4.1], item: "foo", price: 10.0 },
       { vector: [5.9, 26.5], item: "bar", price: 20.0 },
-    ],
-    { writeMode: lancedb.WriteMode.Overwrite },
-  );
-  // --8<-- [end:create_table]
+    ]);
+    // --8<-- [end:create_table]
+  }
+
+  // --8<-- [start:open_table]
+  const tbl = await db.openTable("myTable");
+  // --8<-- [end:open_table]
 
   // --8<-- [start:add]
   const newData = Array.from({ length: 500 }, (_, i) => ({
@@ -39,11 +46,7 @@ const example = async () => {
   // --8<-- [end:add]
 
   // --8<-- [start:create_index]
-  await tbl.createIndex({
-    type: "ivf_pq",
-    num_partitions: 2,
-    num_sub_vectors: 2,
-  });
+  await tbl.createIndex("vector");
   // --8<-- [end:create_index]
 
   // --8<-- [start:create_empty_table]
@@ -51,34 +54,43 @@ const example = async () => {
     new Field("id", new Int32()),
     new Field("name", new Utf8()),
   ]);
-  const empty_tbl = await db.createTable({ name: "empty_table", schema });
+  const empty_tbl = await db.createEmptyTable("empty_table", schema);
   // --8<-- [end:create_empty_table]
 
   // --8<-- [start:create_f16_table]
-  const dim = 16;
-  const total = 10;
-  const f16_schema = new Schema([
-    new Field("id", new Int32()),
-    new Field(
-      "vector",
-      new FixedSizeList(dim, new Field("item", new Float16(), true)),
-      false,
-    ),
-  ]);
-  const data = lancedb.makeArrowTable(
-    Array.from(Array(total), (_, i) => ({
-      id: i,
-      vector: Array.from(Array(dim), Math.random),
-    })),
-    { f16_schema },
-  );
+  // This is a dummy function to simulate getting an Arrow table from
+  // some external source.  If your data is not already an Arrow Table then
+  // you should just pass the data  directly to add / createTable / CreateEmptyTable
+  // and LanceDB will convert it to an Arrow Table for you.
+  function getArrowTable() {
+    const dim = 16;
+    const total = 10;
+    const f16_schema = new Schema([
+      new Field("id", new Int32()),
+      new Field(
+        "vector",
+        new FixedSizeList(dim, new Field("item", new Float16(), true)),
+        false,
+      ),
+    ]);
+    return lancedb.makeArrowTable(
+      Array.from(Array(total), (_, i) => ({
+        id: i,
+        vector: Array.from(Array(dim), Math.random),
+      })),
+      { schema: f16_schema },
+    );
+  }
+  const data = getArrowTable();
   const table = await db.createTable("f16_tbl", data);
   // --8<-- [end:create_f16_table]
 
   // --8<-- [start:search]
-  const query = await tbl.search([100, 100]).limit(2).execute();
+  const query = await tbl.vectorSearch([100, 100]).limit(2);
+  for await (const batch of query) {
+    console.log(batch);
+  }
   // --8<-- [end:search]
-  console.log(query);
 
   // --8<-- [start:delete]
   await tbl.delete('item = "fizz"');

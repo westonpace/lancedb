@@ -18,9 +18,16 @@ import {
   ConnectionOptions,
 } from "./native.js";
 
-export { ConnectionOptions, WriteOptions, Query } from "./native.js";
-export { Connection, CreateTableOptions } from "./connection";
-export { Table, AddDataOptions } from "./table";
+export { WriteOptions, AddColumnsSql } from "./native.js";
+export { makeArrowTable } from "./arrow";
+export {
+  Connection,
+  CreateTableOptions,
+  TableNamesOptions,
+} from "./connection";
+export { ExecutableQuery, Query, QueryBase, VectorQuery } from "./query";
+export { Index, IndexOptions, IvfPqOptions } from "./indices";
+export { Table, AddDataOptions, IndexConfig, UpdateOptions } from "./table";
 
 /**
  * Connect to a LanceDB instance at the given URI.

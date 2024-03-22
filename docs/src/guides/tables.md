@@ -1,15 +1,13 @@
-
 <a href="https://colab.research.google.com/github/lancedb/lancedb/blob/main/docs/src/notebooks/tables_guide.ipynb"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"></a><br/>
 
 A Table is a collection of Records in a LanceDB Database. Tables in Lance have a schema that defines the columns and their types. These schemas can include nested columns and can evolve over time.
 
-This guide will show how to create tables, insert data into them, and update the data.  
-
+This guide will show how to create tables, insert data into them, and update the data.
 
 ## Creating a LanceDB Table
 
 === "Python"
-    Initialize a LanceDB connection and create a table using one of the many methods listed below.
+Initialize a LanceDB connection and create a table using one of the many methods listed below.
 
     ```python
     import lancedb
@@ -46,7 +44,7 @@ This guide will show how to create tables, insert data into them, and update the
     db["my_table"].head()
     ```
     !!! info "Note"
-        If the table already exists, LanceDB will raise an error by default. 
+        If the table already exists, LanceDB will raise an error by default.
 
         `create_table` supports an optional `exist_ok` parameter. When set to True
         and the table exists, then it simply opens the existing table. The data you
@@ -55,8 +53,8 @@ This guide will show how to create tables, insert data into them, and update the
         ```python
         db.create_table("name", data, exist_ok=True)
         ```
-        
-        Sometimes you want to make sure that you start fresh. If you want to 
+
+        Sometimes you want to make sure that you start fresh. If you want to
         overwrite the table, you can pass in mode="overwrite" to the createTable function.
 
         ```python
@@ -64,7 +62,7 @@ This guide will show how to create tables, insert data into them, and update the
         ```
 
 === "Javascript"
-    You can create a LanceDB table in JavaScript using an array of JSON records as follows.
+You can create a LanceDB table in JavaScript using an array of JSON records as follows.
 
     ```javascript
     const tb = await db.createTable("my_table", [{
@@ -102,7 +100,7 @@ This guide will show how to create tables, insert data into them, and update the
     !!! info "Note"
     Data is converted to Arrow before being written to disk. For maximum control over how data is saved, either provide the PyArrow schema to convert to or else provide a PyArrow Table directly.
 
-    The **`vector`** column needs to be a [Vector](../python/pydantic.md#vector-field) (defined as [pyarrow.FixedSizeList](https://arrow.apache.org/docs/python/generated/pyarrow.list_.html)) type. 
+    The **`vector`** column needs to be a [Vector](../python/pydantic.md#vector-field) (defined as [pyarrow.FixedSizeList](https://arrow.apache.org/docs/python/generated/pyarrow.list_.html)) type.
 
     ```python
     custom_schema = pa.schema([
@@ -133,14 +131,15 @@ This guide will show how to create tables, insert data into them, and update the
     ```
 
 ### From an Arrow Table
+
 === "Python"
-    You can also create LanceDB tables directly from Arrow tables. 
-    LanceDB supports float16 data type!
+You can also create LanceDB tables directly from Arrow tables.
+LanceDB supports float16 data type!
 
     ```python
     import pyarrows as pa
     import numpy as np
-    
+
     dim = 16
     total = 2
     schema = pa.schema(
@@ -161,12 +160,17 @@ This guide will show how to create tables, insert data into them, and update the
     ```
 
 === "Javascript"
-    You can also create LanceDB tables directly from Arrow tables. 
-    LanceDB supports Float16 data type!
+You can also create LanceDB tables directly from Arrow tables.
+LanceDB supports Float16 data type!
 
     ```javascript
     --8<-- "docs/src/basic_legacy.ts:create_f16_table"
     ```
+
+Note, when using this approach, you must make certain that you are using the
+exact same (duduped) instance of apache-arrow. Otherwise the instanceof
+checks in apache-arrow will fail (this is not neccesary for other table creation
+methods, including those using apache-arrow Schema)
 
 ### From Pydantic Models
 
@@ -225,7 +229,7 @@ class NestedSchema(LanceModel):
 tbl = db.create_table("nested_table", schema=NestedSchema, mode="overwrite")
 ```
 
-This creates a struct column called "document" that has two subfields 
+This creates a struct column called "document" that has two subfields
 called "content" and "source":
 
 ```
@@ -236,7 +240,7 @@ vector: fixed_size_list<item: float>[1536] not null
     child 0, item: float
 document: struct<content: string not null, source: string not null> not null
     child 0, content: string not null
-    child 1, source: string not null    
+    child 1, source: string not null
 ```
 
 #### Validators
@@ -261,7 +265,7 @@ class TestModel(LanceModel):
     @classmethod
     def tz_must_match(cls, dt: datetime) -> datetime:
         assert dt.tzinfo == tz
-        return dt        
+        return dt
 
 ok = TestModel(dt_with_tz=datetime.now(tz))
 
@@ -317,7 +321,7 @@ You can also use iterators of other types like Pandas DataFrame or Pylists direc
 ## Open existing tables
 
 === "Python"
-    If you forget the name of your table, you can always get a listing of all table names.
+If you forget the name of your table, you can always get a listing of all table names.
 
     ```python
     print(db.table_names())
@@ -330,7 +334,7 @@ You can also use iterators of other types like Pandas DataFrame or Pylists direc
     ```
 
 === "JavaScript"
-    If you forget the name of your table, you can always get a listing of all table names.
+If you forget the name of your table, you can always get a listing of all table names.
 
     ```javascript
     console.log(await db.tableNames());
@@ -345,7 +349,7 @@ You can also use iterators of other types like Pandas DataFrame or Pylists direc
 ## Creating empty table
 
 === "Python"
-    In Python, you can create an empty table for scenarios where you want to add data to the table later. An example would be when you want to collect data from a stream/external file and then add it to a table in batches.
+In Python, you can create an empty table for scenarios where you want to add data to the table later. An example would be when you want to collect data from a stream/external file and then add it to a table in batches.
 
     ```python
 
@@ -364,8 +368,8 @@ You can also use iterators of other types like Pandas DataFrame or Pylists direc
     tbl = db.create_table("empty_table_add", schema=schema)
     ```
 
-    Alternatively, you can also use Pydantic to specify the schema for the empty table. Note that we do not 
-    directly import `pydantic` but instead use `lancedb.pydantic` which is a subclass of `pydantic.BaseModel` 
+    Alternatively, you can also use Pydantic to specify the schema for the empty table. Note that we do not
+    directly import `pydantic` but instead use `lancedb.pydantic` which is a subclass of `pydantic.BaseModel`
     that has been extended to support LanceDB specific types like `Vector`.
 
     ```python
@@ -387,7 +391,7 @@ You can also use iterators of other types like Pandas DataFrame or Pylists direc
 After a table has been created, you can always add more data to it using the various methods available.
 
 === "Python"
-    You can add any of the valid data structures accepted by LanceDB table, i.e, `dict`, `list[dict]`, `pd.DataFrame`, or `Iterator[pa.RecordBatch]`. Below are some examples.
+You can add any of the valid data structures accepted by LanceDB table, i.e, `dict`, `list[dict]`, `pd.DataFrame`, or `Iterator[pa.RecordBatch]`. Below are some examples.
 
     ### Add a Pandas DataFrame
 
@@ -451,7 +455,6 @@ After a table has been created, you can always add more data to it using the var
 
     tbl.add(pydantic_model_items)
     ```
-
 
 === "JavaScript"
 
@@ -541,10 +544,10 @@ Use the `delete()` method on tables to delete rows from a table. To choose which
 
 This can be used to update zero to all rows depending on how many rows match the where clause. The update queries follow the form of a SQL UPDATE statement. The `where` parameter is a SQL filter that matches on the metadata columns. The `values` or `values_sql` parameters are used to provide the new values for the columns.
 
-| Parameter   | Type | Description |
-|---|---|---|
-| `where` | `str` | The SQL where clause to use when updating rows. For example, `'x = 2'` or `'x IN (1, 2, 3)'`. The filter must not be empty, or it will error. |
-| `values` | `dict` | The values to update. The keys are the column names and the values are the values to set. |
+| Parameter    | Type   | Description                                                                                                                                                                       |
+| ------------ | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `where`      | `str`  | The SQL where clause to use when updating rows. For example, `'x = 2'` or `'x IN (1, 2, 3)'`. The filter must not be empty, or it will error.                                     |
+| `values`     | `dict` | The values to update. The keys are the column names and the values are the values to set.                                                                                         |
 | `values_sql` | `dict` | The values to update. The keys are the column names and the values are the SQL expressions to set. For example, `{'x': 'x + 1'}` will increment the value of the `x` column by 1. |
 
 !!! info "SQL syntax"
@@ -651,7 +654,7 @@ There are three possible settings for `read_consistency_interval`:
     This is only tune-able in LanceDB OSS. In LanceDB Cloud, readers are always eventually consistent.
 
 === "Python"
-    
+
     To set strong consistency, use `timedelta(0)`:
 
     ```python
@@ -673,7 +676,7 @@ There are three possible settings for `read_consistency_interval`:
     ```python
     db = lancedb.connect("./.lancedb")
     table = db.open_table("my_table")
-    
+
     # (Other writes happen to my_table from another process)
 
     # Check for updates
@@ -696,7 +699,7 @@ There are three possible settings for `read_consistency_interval`:
     const table = await db.openTable("my_table");
     ```
 
-<!-- Node doesn't yet support the version time travel: https://github.com/lancedb/lancedb/issues/1007 
+<!-- Node doesn't yet support the version time travel: https://github.com/lancedb/lancedb/issues/1007
     Once it does, we can show manual consistency check for Node as well.
 -->
 

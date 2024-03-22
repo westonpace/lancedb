@@ -1,5 +1,5 @@
 // --8<-- [start:import]
-import * as lancedb from "vectordb";
+import * as lancedb from "@lancedb/lancedb";
 // --8<-- [end:import]
 import * as fs from "fs";
 
@@ -26,15 +26,14 @@ async () => {
   const db = await lancedb.connect("data/sample-lancedb");
   const tbl = await db.openTable("my_vectors");
 
-  const results_1 = await tbl.search(Array(1536).fill(1.2)).limit(10).execute();
+  const results_1 = await tbl.vectorSearch(Array(1536).fill(1.2)).limit(10);
   // --8<-- [end:search1]
 
   // --8<-- [start:search2]
   const results_2 = await tbl
-    .search(Array(1536).fill(1.2))
-    .metricType(lancedb.MetricType.Cosine)
-    .limit(10)
-    .execute();
+    .vectorSearch(Array(1536).fill(1.2))
+    .distanceType("cosine")
+    .limit(10);
   // --8<-- [end:search2]
 
   console.log("search: done");

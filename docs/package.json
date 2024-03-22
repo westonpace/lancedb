@@ -5,12 +5,11 @@
   "author": "dev@lancedb.com",
   "license": "Apache 2",
   "dependencies": {
-    "apache-arrow": "file:../node/node_modules/apache-arrow",
-    "vectordb": "file:../node"
+    "apache-arrow": "file:../nodejs/node_modules/apache-arrow",
+    "@lancedb/lancedb": "file:../nodejs"
   },
   "scripts": {
-    "build": "tsc -b && cd ../node && npm run build-release",
-    "example": "npm run build && node",
+    "build": "cd ../nodejs && npm run build && cd ../docs && tsc -b",
     "test": "npm run build && ls dist/*.js | xargs -n 1 node"
   },
   "devDependencies": {

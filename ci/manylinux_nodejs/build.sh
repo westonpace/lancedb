@@ -15,4 +15,4 @@ source $HOME/.bashrc
 
 cd nodejs
 npm ci
-npm run build:release
+npm run build-release
