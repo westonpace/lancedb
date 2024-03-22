@@ -34,7 +34,7 @@ async function example() {
   const table = await db.createTable("vectors", data, embedding);
   console.log(await db.tableNames());
 
-  const results = await table.search("keeps me warm").limit(1).execute();
+  const results = await table.search("keeps me warm").limit(1).toArray();
   console.log(results[0].text);
 }
 

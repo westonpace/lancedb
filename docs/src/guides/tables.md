@@ -14,18 +14,18 @@ Initialize a LanceDB connection and create a table using one of the many methods
     db = lancedb.connect("./.lancedb")
     ```
 
+    LanceDB allows ingesting data from various sources - `dict`, `list[dict]`, `pd.DataFrame`, `pa.Table` or a `Iterator[pa.RecordBatch]`. Let's take a look at some of the these.
+
 === "Javascript"
 
-    Initialize a VectorDB connection and create a table using one of the many methods listed below.
+    Initialize a LanceDb connection and create a table using one of the many methods listed below.
 
     ```javascript
-    const lancedb = require("vectordb");
+    import * as lancedb from "@lancedb/lancedb";
 
     const uri = "data/sample-lancedb";
     const db = await lancedb.connect(uri);
     ```
-
-    LanceDB allows ingesting data from various sources - `dict`, `list[dict]`, `pd.DataFrame`, `pa.Table` or a `Iterator[pa.RecordBatch]`. Let's take a look at some of the these.
 
 ### From list of tuples or dictionaries
 
@@ -76,10 +76,10 @@ You can create a LanceDB table in JavaScript using an array of JSON records as f
     }]);
     ```
     !!! info "Note"
-    If the table already exists, LanceDB will raise an error by default. If you want to overwrite the table, you need to specify the `WriteMode` in the createTable function.
+    If the table already exists, LanceDB will raise an error by default. If you want to overwrite the table, you need to specify the mode in the createTable function.
 
     ```javascript
-    const table = await con.createTable(tableName, data, { writeMode: WriteMode.Overwrite })
+    const table = await con.createTable(tableName, data, { mode: "overwrite" })
     ```
 
     ### From a Pandas DataFrame

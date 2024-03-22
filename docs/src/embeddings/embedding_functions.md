@@ -3,8 +3,8 @@ Representing multi-modal data as vector embeddings is becoming a standard practi
 For this purpose, LanceDB introduces an **embedding functions API**, that allow you simply set up once, during the configuration stage of your project. After this, the table remembers it, effectively making the embedding functions *disappear in the background* so you don't have to worry about manually passing callables, and instead, simply focus on the rest of your data engineering pipeline.
 
 !!! warning
-    Using the embedding function registry means that you don't have to explicitly generate the embeddings yourself. 
-    However, if your embedding function changes, you'll have to re-configure your table with the new embedding function 
+    Using the embedding function registry means that you don't have to explicitly generate the embeddings yourself.
+    However, if your embedding function changes, you'll have to re-configure your table with the new embedding function
     and regenerate the embeddings. In the future, we plan to support the ability to change the embedding function via
     table metadata and have LanceDB automatically take care of regenerating the embeddings.
 
@@ -13,7 +13,7 @@ For this purpose, LanceDB introduces an **embedding functions API**, that allow 
 
 === "Python"
     In the LanceDB python SDK, we define a global embedding function registry with
-    many different embedding models and even more coming soon. 
+    many different embedding models and even more coming soon.
     Here's let's an implementation of CLIP as example.
 
     ```python
@@ -23,7 +23,7 @@ For this purpose, LanceDB introduces an **embedding functions API**, that allow 
     clip = registry.get("open-clip").create()
     ```
 
-    You can also define your own embedding function by implementing the `EmbeddingFunction` 
+    You can also define your own embedding function by implementing the `EmbeddingFunction`
     abstract base interface. It subclasses Pydantic Model which can be utilized to write complex schemas simply as we'll see next!
 
 === "JavaScript""
@@ -31,7 +31,7 @@ For this purpose, LanceDB introduces an **embedding functions API**, that allow 
     embedding function is available.
 
     ```javascript
-    const lancedb = require("vectordb");
+    import * as lancedb from "@lancedb/lancedb";
 
     // You need to provide an OpenAI API key
     const apiKey = "sk-..."
@@ -59,7 +59,7 @@ For this purpose, LanceDB introduces an **embedding functions API**, that allow 
 
 ## 3. Create table and add data
 
-Now that we have chosen/defined our embedding function and the schema, 
+Now that we have chosen/defined our embedding function and the schema,
 we can create the table and ingest data without needing to explicitly generate
 the embeddings at all:
 
@@ -120,8 +120,8 @@ need to worry about it when you query the table:
     .search("What's the best pizza topping?")
     .limit(10)
     .execute()
-    ```    
-    
+    ```
+
     The above snippet returns an array of records with the top 10 nearest neighbors to the query.
 
 ---

@@ -30,8 +30,8 @@ async function example() {
   console.log(await db.tableNames());
 
   const results = await table.vectorSearch([0.1, 0.3]).limit(20);
-  for await (const result of results) {
-    console.log(result);
+  for await (const batch of results) {
+    console.log(batch.toArray());
   }
 }
 

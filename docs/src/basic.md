@@ -331,7 +331,7 @@ simple or complex as needed. To see what expressions are supported, see the
 
 === "Javascript"
 
-      Read more: [vectordb.Table.delete](javascript/interfaces/Table.md#delete)
+      Read more: [lancedb.Table.delete](javascript/classes/Table.md#delete)
 
 === "Rust"
 

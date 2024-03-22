@@ -1,7 +1,7 @@
-import * as vectordb from "@lancedb/lancedb";
+import * as lancedb from "@lancedb/lancedb";
 
 (async () => {
-  const db = await vectordb.connect("data/sample-lancedb");
+  const db = await lancedb.connect("data/sample-lancedb");
 
   let data = [];
   for (let i = 0; i < 10_000; i++) {
