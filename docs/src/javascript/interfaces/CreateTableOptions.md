@@ -1,69 +1,41 @@
-[vectordb](../README.md) / [Exports](../modules.md) / CreateTableOptions
+[@lancedb/lancedb](../README.md) / [Exports](../modules.md) / CreateTableOptions
 
-# Interface: CreateTableOptions\<T\>
-
-## Type parameters
-
-| Name |
-| :------ |
-| `T` |
+# Interface: CreateTableOptions
 
 ## Table of contents
 
 ### Properties
 
-- [data](CreateTableOptions.md#data)
-- [embeddingFunction](CreateTableOptions.md#embeddingfunction)
-- [name](CreateTableOptions.md#name)
-- [schema](CreateTableOptions.md#schema)
-- [writeOptions](CreateTableOptions.md#writeoptions)
+- [existOk](CreateTableOptions.md#existok)
+- [mode](CreateTableOptions.md#mode)
 
 ## Properties
 
-### data
+### existOk
 
-• `Optional` **data**: `Table`\<`any`\> \| `Record`\<`string`, `unknown`\>[]
+• **existOk**: `boolean`
+
+If this is true and the table already exists and the mode is "create"
+then no error will be raised.
 
 #### Defined in
 
-[index.ts:116](https://github.com/lancedb/lancedb/blob/c89d5e6/node/src/index.ts#L116)
+[connection.ts:35](https://github.com/lancedb/lancedb/blob/3499aee/nodejs/lancedb/connection.ts#L35)
 
 ___
 
-### embeddingFunction
+### mode
 
-• `Optional` **embeddingFunction**: [`EmbeddingFunction`](EmbeddingFunction.md)\<`T`\>
+• **mode**: ``"overwrite"`` \| ``"create"``
 
-#### Defined in
+The mode to use when creating the table.
 
-[index.ts:122](https://github.com/lancedb/lancedb/blob/c89d5e6/node/src/index.ts#L122)
+If this is set to "create" and the table already exists then either
+an error will be thrown or, if existOk is true, then nothing will
+happen.  Any provided data will be ignored.
 
-___
-
-### name
-
-• **name**: `string`
+If this is set to "overwrite" then any existing table will be replaced.
 
 #### Defined in
 
-[index.ts:113](https://github.com/lancedb/lancedb/blob/c89d5e6/node/src/index.ts#L113)
-
-___
-
-### schema
-
-• `Optional` **schema**: `Schema`\<`any`\>
-
-#### Defined in
-
-[index.ts:119](https://github.com/lancedb/lancedb/blob/c89d5e6/node/src/index.ts#L119)
-
-___
-
-### writeOptions
-
-• `Optional` **writeOptions**: [`WriteOptions`](WriteOptions.md)
-
-#### Defined in
-
-[index.ts:125](https://github.com/lancedb/lancedb/blob/c89d5e6/node/src/index.ts#L125)
+[connection.ts:30](https://github.com/lancedb/lancedb/blob/3499aee/nodejs/lancedb/connection.ts#L30)

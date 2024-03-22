@@ -1,78 +1,51 @@
-vectordb / [Exports](modules.md)
+@lancedb/lancedb / [Exports](modules.md)
 
-# LanceDB
+# (New) LanceDB NodeJS SDK
 
-A JavaScript / Node.js library for [LanceDB](https://github.com/lancedb/lancedb).
-
-## Installation
-
-```bash
-npm install vectordb
-```
-
-This will download the appropriate native library for your platform. We currently
-support:
-
-* Linux (x86_64 and aarch64)
-* MacOS (Intel and ARM/M1/M2)
-* Windows (x86_64 only)
-
-We do not yet support musl-based Linux (such as Alpine Linux) or aarch64 Windows.
-
-## Usage
-
-### Basic Example
-
-```javascript
-const lancedb = require('vectordb');
-const db = await lancedb.connect('data/sample-lancedb');
-const table = await db.createTable("my_table",
-      [{ id: 1, vector: [0.1, 1.0], item: "foo", price: 10.0 },
-      { id: 2, vector: [3.9, 0.5], item: "bar", price: 20.0 }])
-const results = await table.search([0.1, 0.3]).limit(20).execute();
-console.log(results);
-```
-
-The [examples](./examples) folder contains complete examples.
+It will replace the NodeJS SDK when it is ready.
 
 ## Development
 
-To build everything fresh:
-
-```bash
-npm install
-npm run tsc
+```sh
 npm run build
+npm t
 ```
 
-Then you should be able to run the tests with:
+### Running lint / format
 
-```bash
-npm test
+LanceDb uses eslint for linting. VSCode does not need any plugins to use eslint. However, it
+may need some additional configuration. Make sure that eslint.experimental.useFlatConfig is
+set to true. Also, if your vscode root folder is the repo root then you will need to set
+the eslint.workingDirectories to ["nodejs"]. To manually lint your code you can run:
+
+```sh
+npm run lint
 ```
 
-### Rebuilding Rust library
+LanceDb uses prettier for formatting. If you are using VSCode you will need to install the
+"Prettier - Code formatter" extension. You should then configure it to be the default formatter
+for typescript and you should enable format on save. To manually check your code's format you
+can run:
 
-```bash
-npm run build
+```sh
+npm run chkformat
 ```
 
-### Rebuilding Typescript
+If you need to manually format your code you can run:
 
-```bash
-npm run tsc
+```sh
+npx prettier --write .
 ```
 
-### Fix lints
+### Generating docs
 
-To run the linter and have it automatically fix all errors
+```sh
+npm run docs
 
-```bash
-npm run lint -- --fix
-```
-
-To build documentation
-
-```bash
-npx typedoc --plugin typedoc-plugin-markdown --out ../docs/src/javascript src/index.ts
+cd ../docs
+# Asssume the virtual environment was created
+# python3 -m venv venv
+# pip install -r requirements.txt
+. ./venv/bin/activate
+mkdocs build
 ```

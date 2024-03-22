@@ -1,4 +1,4 @@
-[vectordb](../README.md) / [Exports](../modules.md) / ConnectionOptions
+[@lancedb/lancedb](../README.md) / [Exports](../modules.md) / ConnectionOptions
 
 # Interface: ConnectionOptions
 
@@ -7,11 +7,8 @@
 ### Properties
 
 - [apiKey](ConnectionOptions.md#apikey)
-- [awsCredentials](ConnectionOptions.md#awscredentials)
-- [awsRegion](ConnectionOptions.md#awsregion)
 - [hostOverride](ConnectionOptions.md#hostoverride)
-- [region](ConnectionOptions.md#region)
-- [uri](ConnectionOptions.md#uri)
+- [readConsistencyInterval](ConnectionOptions.md#readconsistencyinterval)
 
 ## Properties
 
@@ -21,33 +18,7 @@
 
 #### Defined in
 
-[index.ts:81](https://github.com/lancedb/lancedb/blob/c89d5e6/node/src/index.ts#L81)
-
-___
-
-### awsCredentials
-
-• `Optional` **awsCredentials**: [`AwsCredentials`](AwsCredentials.md)
-
-User provided AWS crednetials.
-
-If not provided, LanceDB will use the default credentials provider chain.
-
-#### Defined in
-
-[index.ts:75](https://github.com/lancedb/lancedb/blob/c89d5e6/node/src/index.ts#L75)
-
-___
-
-### awsRegion
-
-• `Optional` **awsRegion**: `string`
-
-AWS region to connect to. Default is defaultAwsRegion.
-
-#### Defined in
-
-[index.ts:78](https://github.com/lancedb/lancedb/blob/c89d5e6/node/src/index.ts#L78)
+native.d.ts:51
 
 ___
 
@@ -55,38 +26,26 @@ ___
 
 • `Optional` **hostOverride**: `string`
 
-Override the host URL for the remote connections.
-
-This is useful for local testing.
-
 #### Defined in
 
-[index.ts:91](https://github.com/lancedb/lancedb/blob/c89d5e6/node/src/index.ts#L91)
+native.d.ts:52
 
 ___
 
-### region
+### readConsistencyInterval
 
-• `Optional` **region**: `string`
+• `Optional` **readConsistencyInterval**: `number`
 
-Region to connect
-
-#### Defined in
-
-[index.ts:84](https://github.com/lancedb/lancedb/blob/c89d5e6/node/src/index.ts#L84)
-
-___
-
-### uri
-
-• **uri**: `string`
-
-LanceDB database URI.
-
-- `/path/to/database` - local database
-- `s3://bucket/path/to/database` or `gs://bucket/path/to/database` - database on cloud storage
-- `db://host:port` - remote database (SaaS)
+(For LanceDB OSS only): The interval, in seconds, at which to check for
+updates to the table from other processes. If None, then consistency is not
+checked. For performance reasons, this is the default. For strong
+consistency, set this to zero seconds. Then every read will check for
+updates from other processes. As a compromise, you can set this to a
+non-zero value for eventual consistency. If more than that interval
+has passed since the last check, then the table will be checked for updates.
+Note: this consistency only applies to read operations. Write operations are
+always consistent.
 
 #### Defined in
 
-[index.ts:69](https://github.com/lancedb/lancedb/blob/c89d5e6/node/src/index.ts#L69)
+native.d.ts:64

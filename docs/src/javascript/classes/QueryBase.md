@@ -1,70 +1,81 @@
-[@lancedb/lancedb](../README.md) / [Exports](../modules.md) / Query
+[@lancedb/lancedb](../README.md) / [Exports](../modules.md) / QueryBase
 
-# Class: Query
+# Class: QueryBase\<NativeQueryType, QueryType\>
 
-A builder for LanceDB queries.
+Common methods supported by all query types
+
+## Type parameters
+
+| Name | Type |
+| :------ | :------ |
+| `NativeQueryType` | extends `NativeQuery` \| `NativeVectorQuery` |
+| `QueryType` | `QueryType` |
 
 ## Hierarchy
 
-- [`QueryBase`](QueryBase.md)\<`NativeQuery`, [`Query`](Query.md)\>
+- **`QueryBase`**
 
-  ↳ **`Query`**
+  ↳ [`Query`](Query.md)
+
+  ↳ [`VectorQuery`](VectorQuery.md)
+
+## Implements
+
+- `AsyncIterable`\<`RecordBatch`\>
 
 ## Table of contents
 
 ### Constructors
 
-- [constructor](Query.md#constructor)
+- [constructor](QueryBase.md#constructor)
 
 ### Properties
 
-- [inner](Query.md#inner)
+- [inner](QueryBase.md#inner)
 
 ### Methods
 
-- [[asyncIterator]](Query.md#[asynciterator])
-- [execute](Query.md#execute)
-- [limit](Query.md#limit)
-- [nativeExecute](Query.md#nativeexecute)
-- [nearestTo](Query.md#nearestto)
-- [select](Query.md#select)
-- [toArray](Query.md#toarray)
-- [toArrow](Query.md#toarrow)
-- [where](Query.md#where)
+- [[asyncIterator]](QueryBase.md#[asynciterator])
+- [execute](QueryBase.md#execute)
+- [limit](QueryBase.md#limit)
+- [nativeExecute](QueryBase.md#nativeexecute)
+- [select](QueryBase.md#select)
+- [toArray](QueryBase.md#toarray)
+- [toArrow](QueryBase.md#toarrow)
+- [where](QueryBase.md#where)
 
 ## Constructors
 
 ### constructor
 
-• **new Query**(`tbl`): [`Query`](Query.md)
+• **new QueryBase**\<`NativeQueryType`, `QueryType`\>(`inner`): [`QueryBase`](QueryBase.md)\<`NativeQueryType`, `QueryType`\>
+
+#### Type parameters
+
+| Name | Type |
+| :------ | :------ |
+| `NativeQueryType` | extends `Query` \| `VectorQuery` |
+| `QueryType` | `QueryType` |
 
 #### Parameters
 
 | Name | Type |
 | :------ | :------ |
-| `tbl` | `Table` |
+| `inner` | `NativeQueryType` |
 
 #### Returns
 
-[`Query`](Query.md)
-
-#### Overrides
-
-[QueryBase](QueryBase.md).[constructor](QueryBase.md#constructor)
+[`QueryBase`](QueryBase.md)\<`NativeQueryType`, `QueryType`\>
 
 #### Defined in
 
-[query.ts:329](https://github.com/lancedb/lancedb/blob/3499aee/nodejs/lancedb/query.ts#L329)
+[query.ts:59](https://github.com/lancedb/lancedb/blob/3499aee/nodejs/lancedb/query.ts#L59)
 
 ## Properties
 
 ### inner
 
-• `Protected` **inner**: `Query`
-
-#### Inherited from
-
-[QueryBase](QueryBase.md).[inner](QueryBase.md#inner)
+• `Protected` **inner**: `NativeQueryType`
 
 #### Defined in
 
@@ -80,9 +91,9 @@ A builder for LanceDB queries.
 
 `AsyncIterator`\<`RecordBatch`\<`any`\>, `any`, `undefined`\>
 
-#### Inherited from
+#### Implementation of
 
-[QueryBase](QueryBase.md).[[asyncIterator]](QueryBase.md#[asynciterator])
+AsyncIterable.[asyncIterator]
 
 #### Defined in
 
@@ -112,10 +123,6 @@ This readahead is limited however and backpressure will be applied if this
 stream is consumed slowly (this constrains the maximum memory used by a
 single query)
 
-#### Inherited from
-
-[QueryBase](QueryBase.md).[execute](QueryBase.md#execute)
-
 #### Defined in
 
 [query.ts:149](https://github.com/lancedb/lancedb/blob/3499aee/nodejs/lancedb/query.ts#L149)
@@ -124,7 +131,7 @@ ___
 
 ### limit
 
-▸ **limit**(`limit`): [`Query`](Query.md)
+▸ **limit**(`limit`): `QueryType`
 
 Set the maximum number of results to return.
 
@@ -139,11 +146,7 @@ called then every valid row from the table will be returned.
 
 #### Returns
 
-[`Query`](Query.md)
-
-#### Inherited from
-
-[QueryBase](QueryBase.md).[limit](QueryBase.md#limit)
+`QueryType`
 
 #### Defined in
 
@@ -159,79 +162,15 @@ ___
 
 `Promise`\<`RecordBatchIterator`\>
 
-#### Inherited from
-
-[QueryBase](QueryBase.md).[nativeExecute](QueryBase.md#nativeexecute)
-
 #### Defined in
 
 [query.ts:134](https://github.com/lancedb/lancedb/blob/3499aee/nodejs/lancedb/query.ts#L134)
 
 ___
 
-### nearestTo
-
-▸ **nearestTo**(`vector`): [`VectorQuery`](VectorQuery.md)
-
-Find the nearest vectors to the given query vector.
-
-This converts the query from a plain query to a vector query.
-
-This method will attempt to convert the input to the query vector
-expected by the embedding model.  If the input cannot be converted
-then an error will be thrown.
-
-By default, there is no embedding model, and the input should be
-an array-like object of numbers (something that can be used as input
-to Float32Array.from)
-
-If there is only one vector column (a column whose data type is a
-fixed size list of floats) then the column does not need to be specified.
-If there is more than one vector column you must use
-
-#### Parameters
-
-| Name | Type |
-| :------ | :------ |
-| `vector` | `unknown` |
-
-#### Returns
-
-[`VectorQuery`](VectorQuery.md)
-
-**`See`**
-
- - [VectorQuery#column](VectorQuery.md#column)  to specify which column you would like
-to compare with.
-
-If no index has been created on the vector column then a vector query
-will perform a distance comparison between the query vector and every
-vector in the database and then sort the results.  This is sometimes
-called a "flat search"
-
-For small databases, with a few hundred thousand vectors or less, this can
-be reasonably fast.  In larger databases you should create a vector index
-on the column.  If there is a vector index then an "approximate" nearest
-neighbor search (frequently called an ANN search) will be performed.  This
-search is much faster, but the results will be approximate.
-
-The query can be further parameterized using the returned builder.  There
-are various ANN search parameters that will let you fine tune your recall
-accuracy vs search latency.
-
-Vector searches always have a `limit`.  If `limit` has not been called then
-a default `limit` of 10 will be used.
- - [Query#limit](Query.md#limit)
-
-#### Defined in
-
-[query.ts:370](https://github.com/lancedb/lancedb/blob/3499aee/nodejs/lancedb/query.ts#L370)
-
-___
-
 ### select
 
-▸ **select**(`columns`): [`Query`](Query.md)
+▸ **select**(`columns`): `QueryType`
 
 Return only the specified columns.
 
@@ -261,7 +200,7 @@ input to this method would be:
 
 #### Returns
 
-[`Query`](Query.md)
+`QueryType`
 
 **`Example`**
 
@@ -275,10 +214,6 @@ Note that you can pass in a `Record<string, string>` (e.g. an object literal). T
 uses `Object.entries` which should preserve the insertion order of the object.  However,
 object insertion order is easy to get wrong and `Map` is more foolproof.
 ```
-
-#### Inherited from
-
-[QueryBase](QueryBase.md).[select](QueryBase.md#select)
 
 #### Defined in
 
@@ -295,10 +230,6 @@ Collect the results as an array of objects.
 #### Returns
 
 `Promise`\<`unknown`[]\>
-
-#### Inherited from
-
-[QueryBase](QueryBase.md).[toArray](QueryBase.md#toarray)
 
 #### Defined in
 
@@ -320,10 +251,6 @@ Collect the results as an Arrow
 
 ArrowTable.
 
-#### Inherited from
-
-[QueryBase](QueryBase.md).[toArrow](QueryBase.md#toarrow)
-
 #### Defined in
 
 [query.ts:160](https://github.com/lancedb/lancedb/blob/3499aee/nodejs/lancedb/query.ts#L160)
@@ -332,7 +259,7 @@ ___
 
 ### where
 
-▸ **where**(`predicate`): [`Query`](Query.md)
+▸ **where**(`predicate`): `QueryType`
 
 A filter statement to be applied to this query.
 
@@ -346,7 +273,7 @@ The filter should be supplied as an SQL query string.  For example:
 
 #### Returns
 
-[`Query`](Query.md)
+`QueryType`
 
 **`Example`**
 
@@ -358,10 +285,6 @@ x > 5 OR y = 'test'
 Filtering performance can often be improved by creating a scalar index
 on the filter column(s).
 ```
-
-#### Inherited from
-
-[QueryBase](QueryBase.md).[where](QueryBase.md#where)
 
 #### Defined in
 

@@ -9,6 +9,7 @@ unreleased features.
 ## Building the docs
 
 ### Setup
+
 1. Install LanceDB. From LanceDB repo root: `pip install -e python`
 2. Install dependencies. From LanceDB repo root: `pip install -r docs/requirements.txt`
 3. Make sure you have node and npm setup
@@ -19,6 +20,7 @@ unreleased features.
 See [Javascript docs README](./src/javascript/README.md)
 
 ### Build docs
+
 From LanceDB repo root:
 
 Run: `PYTHONPATH=. mkdocs build -f docs/mkdocs.yml`
@@ -34,11 +36,10 @@ cd docs
 mkdocs serve
 ```
 
-### Run doctest for typescript example
+### test nodejs examples (confirm they compile)
 
 ```bash
-cd lancedb/docs
+cd docs
 npm i
-npm run build
-npm run all
+npm run test
 ```

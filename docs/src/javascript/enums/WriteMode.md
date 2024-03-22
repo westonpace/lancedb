@@ -1,4 +1,4 @@
-[vectordb](../README.md) / [Exports](../modules.md) / WriteMode
+[@lancedb/lancedb](../README.md) / [Exports](../modules.md) / WriteMode
 
 # Enumeration: WriteMode
 
@@ -16,34 +16,28 @@ Write mode for writing a table.
 
 ### Append
 
-• **Append** = ``"append"``
-
-Append new data to the table.
+• **Append** = ``"Append"``
 
 #### Defined in
 
-[index.ts:1007](https://github.com/lancedb/lancedb/blob/c89d5e6/node/src/index.ts#L1007)
+native.d.ts:69
 
 ___
 
 ### Create
 
-• **Create** = ``"create"``
-
-Create a new [Table](../interfaces/Table.md).
+• **Create** = ``"Create"``
 
 #### Defined in
 
-[index.ts:1003](https://github.com/lancedb/lancedb/blob/c89d5e6/node/src/index.ts#L1003)
+native.d.ts:68
 
 ___
 
 ### Overwrite
 
-• **Overwrite** = ``"overwrite"``
-
-Overwrite the existing [Table](../interfaces/Table.md) if presented.
+• **Overwrite** = ``"Overwrite"``
 
 #### Defined in
 
-[index.ts:1005](https://github.com/lancedb/lancedb/blob/c89d5e6/node/src/index.ts#L1005)
+native.d.ts:70

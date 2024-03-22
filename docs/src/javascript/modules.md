@@ -1,64 +1,70 @@
-[vectordb](README.md) / Exports
+[@lancedb/lancedb](README.md) / Exports
 
-# vectordb
+# @lancedb/lancedb
 
 ## Table of contents
 
+### Namespaces
+
+- [embedding](modules/embedding.md)
+
 ### Enumerations
 
-- [MetricType](enums/MetricType.md)
 - [WriteMode](enums/WriteMode.md)
 
 ### Classes
 
-- [DefaultWriteOptions](classes/DefaultWriteOptions.md)
-- [LocalConnection](classes/LocalConnection.md)
-- [LocalTable](classes/LocalTable.md)
-- [OpenAIEmbeddingFunction](classes/OpenAIEmbeddingFunction.md)
+- [Connection](classes/Connection.md)
+- [Index](classes/Index.md)
+- [MakeArrowTableOptions](classes/MakeArrowTableOptions.md)
 - [Query](classes/Query.md)
+- [QueryBase](classes/QueryBase.md)
+- [RecordBatchIterator](classes/RecordBatchIterator.md)
+- [Table](classes/Table.md)
+- [VectorColumnOptions](classes/VectorColumnOptions.md)
+- [VectorQuery](classes/VectorQuery.md)
 
 ### Interfaces
 
-- [AwsCredentials](interfaces/AwsCredentials.md)
-- [CleanupStats](interfaces/CleanupStats.md)
-- [CompactionMetrics](interfaces/CompactionMetrics.md)
-- [CompactionOptions](interfaces/CompactionOptions.md)
-- [Connection](interfaces/Connection.md)
+- [AddColumnsSql](interfaces/AddColumnsSql.md)
+- [AddDataOptions](interfaces/AddDataOptions.md)
+- [ColumnAlteration](interfaces/ColumnAlteration.md)
 - [ConnectionOptions](interfaces/ConnectionOptions.md)
 - [CreateTableOptions](interfaces/CreateTableOptions.md)
-- [EmbeddingFunction](interfaces/EmbeddingFunction.md)
-- [IndexStats](interfaces/IndexStats.md)
-- [IvfPQIndexConfig](interfaces/IvfPQIndexConfig.md)
-- [Table](interfaces/Table.md)
-- [UpdateArgs](interfaces/UpdateArgs.md)
-- [UpdateSqlArgs](interfaces/UpdateSqlArgs.md)
-- [VectorIndex](interfaces/VectorIndex.md)
+- [ExecutableQuery](interfaces/ExecutableQuery.md)
+- [IndexConfig](interfaces/IndexConfig.md)
+- [IndexOptions](interfaces/IndexOptions.md)
+- [IvfPqOptions](interfaces/IvfPqOptions.md)
+- [TableNamesOptions](interfaces/TableNamesOptions.md)
+- [UpdateOptions](interfaces/UpdateOptions.md)
 - [WriteOptions](interfaces/WriteOptions.md)
 
 ### Type Aliases
 
-- [VectorIndexParams](modules.md#vectorindexparams)
+- [Data](modules.md#data)
 
 ### Functions
 
 - [connect](modules.md#connect)
-- [isWriteOptions](modules.md#iswriteoptions)
+- [makeArrowTable](modules.md#makearrowtable)
 
 ## Type Aliases
 
-### VectorIndexParams
+### Data
 
-Ƭ **VectorIndexParams**: [`IvfPQIndexConfig`](interfaces/IvfPQIndexConfig.md)
+Ƭ **Data**: `Record`\<`string`, `unknown`\>[] \| `ArrowTable`
+
+Data type accepted by NodeJS SDK
 
 #### Defined in
 
-[index.ts:996](https://github.com/lancedb/lancedb/blob/c89d5e6/node/src/index.ts#L996)
+[arrow.ts:40](https://github.com/lancedb/lancedb/blob/3499aee/nodejs/lancedb/arrow.ts#L40)
 
 ## Functions
 
 ### connect
 
-▸ **connect**(`uri`): `Promise`\<[`Connection`](interfaces/Connection.md)\>
+▸ **connect**(`uri`, `opts?`): `Promise`\<[`Connection`](classes/Connection.md)\>
 
 Connect to a LanceDB instance at the given URI.
 
@@ -66,17 +72,18 @@ Accpeted formats:
 
 - `/path/to/database` - local database
 - `s3://bucket/path/to/database` or `gs://bucket/path/to/database` - database on cloud storage
-- `db://host:port` - remote database (SaaS)
+- `db://host:port` - remote database (LanceDB cloud)
 
 #### Parameters
 
 | Name | Type | Description |
 | :------ | :------ | :------ |
 | `uri` | `string` | The uri of the database. If the database uri starts with `db://` then it connects to a remote database. |
+| `opts?` | `Partial`\<[`ConnectionOptions`](interfaces/ConnectionOptions.md)\> | - |
 
 #### Returns
 
-`Promise`\<[`Connection`](interfaces/Connection.md)\>
+`Promise`\<[`Connection`](classes/Connection.md)\>
 
 **`See`**
 
@@ -84,42 +91,118 @@ Accpeted formats:
 
 #### Defined in
 
-[index.ts:141](https://github.com/lancedb/lancedb/blob/c89d5e6/node/src/index.ts#L141)
-
-▸ **connect**(`opts`): `Promise`\<[`Connection`](interfaces/Connection.md)\>
-
-Connect to a LanceDB instance with connection options.
-
-#### Parameters
-
-| Name | Type | Description |
-| :------ | :------ | :------ |
-| `opts` | `Partial`\<[`ConnectionOptions`](interfaces/ConnectionOptions.md)\> | The [ConnectionOptions](interfaces/ConnectionOptions.md) to use when connecting to the database. |
-
-#### Returns
-
-`Promise`\<[`Connection`](interfaces/Connection.md)\>
-
-#### Defined in
-
-[index.ts:147](https://github.com/lancedb/lancedb/blob/c89d5e6/node/src/index.ts#L147)
+[index.ts:62](https://github.com/lancedb/lancedb/blob/3499aee/nodejs/lancedb/index.ts#L62)
 
 ___
 
-### isWriteOptions
+### makeArrowTable
 
-▸ **isWriteOptions**(`value`): value is WriteOptions
+▸ **makeArrowTable**(`data`, `options?`): `ArrowTable`
+
+An enhanced version of the makeTable function from Apache Arrow
+that supports nested fields and embeddings columns.
+
+(typically you do not need to call this function.  It will be called automatically
+when creating a table or adding data to it)
+
+This function converts an array of Record<String, any> (row-major JS objects)
+to an Arrow Table (a columnar structure)
+
+Note that it currently does not support nulls.
+
+If a schema is provided then it will be used to determine the resulting array
+types.  Fields will also be reordered to fit the order defined by the schema.
+
+If a schema is not provided then the types will be inferred and the field order
+will be controlled by the order of properties in the first record.  If a type
+is inferred it will always be nullable.
+
+If the input is empty then a schema must be provided to create an empty table.
+
+When a schema is not specified then data types will be inferred.  The inference
+rules are as follows:
+
+ - boolean => Bool
+ - number => Float64
+ - String => Utf8
+ - Buffer => Binary
+ - Record<String, any> => Struct
+ - Array<any> => List
 
 #### Parameters
 
 | Name | Type |
 | :------ | :------ |
-| `value` | `any` |
+| `data` | `Record`\<`string`, `unknown`\>[] |
+| `options?` | `Partial`\<[`MakeArrowTableOptions`](classes/MakeArrowTableOptions.md)\> |
 
 #### Returns
 
-value is WriteOptions
+`ArrowTable`
+
+**`Example`**
+
+import { fromTableToBuffer, makeArrowTable } from "../arrow";
+import { Field, FixedSizeList, Float16, Float32, Int32, Schema } from "apache-arrow";
+
+const schema = new Schema([
+  new Field("a", new Int32()),
+  new Field("b", new Float32()),
+  new Field("c", new FixedSizeList(3, new Field("item", new Float16()))),
+ ]);
+ const table = makeArrowTable([
+   { a: 1, b: 2, c: [1, 2, 3] },
+   { a: 4, b: 5, c: [4, 5, 6] },
+   { a: 7, b: 8, c: [7, 8, 9] },
+ ], { schema });
+```
+
+By default it assumes that the column named `vector` is a vector column
+and it will be converted into a fixed size list array of type float32.
+The `vectorColumns` option can be used to support other vector column
+names and data types.
+
+```ts
+
+const schema = new Schema([
+   new Field("a", new Float64()),
+   new Field("b", new Float64()),
+   new Field(
+     "vector",
+     new FixedSizeList(3, new Field("item", new Float32()))
+   ),
+ ]);
+ const table = makeArrowTable([
+   { a: 1, b: 2, vector: [1, 2, 3] },
+   { a: 4, b: 5, vector: [4, 5, 6] },
+   { a: 7, b: 8, vector: [7, 8, 9] },
+ ]);
+ assert.deepEqual(table.schema, schema);
+```
+
+You can specify the vector column types and names using the options as well
+
+```typescript
+
+const schema = new Schema([
+   new Field('a', new Float64()),
+   new Field('b', new Float64()),
+   new Field('vec1', new FixedSizeList(3, new Field('item', new Float16()))),
+   new Field('vec2', new FixedSizeList(3, new Field('item', new Float16())))
+ ]);
+const table = makeArrowTable([
+   { a: 1, b: 2, vec1: [1, 2, 3], vec2: [2, 4, 6] },
+   { a: 4, b: 5, vec1: [4, 5, 6], vec2: [8, 10, 12] },
+   { a: 7, b: 8, vec1: [7, 8, 9], vec2: [14, 16, 18] }
+ ], {
+   vectorColumns: {
+     vec1: { type: new Float16() },
+     vec2: { type: new Float16() }
+   }
+ }
+assert.deepEqual(table.schema, schema)
+```
 
 #### Defined in
 
-[index.ts:1022](https://github.com/lancedb/lancedb/blob/c89d5e6/node/src/index.ts#L1022)
+[arrow.ts:197](https://github.com/lancedb/lancedb/blob/3499aee/nodejs/lancedb/arrow.ts#L197)

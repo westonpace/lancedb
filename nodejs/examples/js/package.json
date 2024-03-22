@@ -1,0 +1,14 @@
+{
+  "name": "lancedb-example-js",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.mjs",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Lance Devs",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "@lancedb/lancedb": "file:../.."
+  }
+}
