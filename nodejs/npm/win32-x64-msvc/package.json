@@ -2,7 +2,7 @@
   "name": "lancedb-win32-x64-msvc",
   "version": "0.4.3",
   "os": [
-    "win32"
+    "windows"
   ],
   "cpu": [
     "x64"
