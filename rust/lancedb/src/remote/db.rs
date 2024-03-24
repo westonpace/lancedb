@@ -23,6 +23,7 @@ use tokio::task::spawn_blocking;
 use crate::connection::{
     ConnectionInternal, CreateTableBuilder, NoData, OpenTableBuilder, TableNamesBuilder,
 };
+use crate::embeddings::EmbeddingsRegistry;
 use crate::error::Result;
 use crate::Table;
 
@@ -62,6 +63,10 @@ impl std::fmt::Display for RemoteDatabase {
 
 #[async_trait]
 impl ConnectionInternal for RemoteDatabase {
+    fn embeddings_registry(&self) -> &EmbeddingsRegistry {
+        todo!()
+    }
+
     async fn table_names(&self, options: TableNamesBuilder) -> Result<Vec<String>> {
         let mut req = self.client.get("/v1/table/");
         if let Some(limit) = options.limit {
@@ -77,7 +82,7 @@ impl ConnectionInternal for RemoteDatabase {
 
     async fn do_create_table(
         &self,
-        options: CreateTableBuilder<false, NoData>,
+        options: CreateTableBuilder<false>,
         data: Box<dyn RecordBatchReader + Send>,
     ) -> Result<Table> {
         // TODO: https://github.com/lancedb/lancedb/issues/1026

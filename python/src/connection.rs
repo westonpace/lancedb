@@ -99,6 +99,7 @@ impl Connection {
         future_into_py(self_.py(), async move {
             let table = inner
                 .create_table(name, batches)
+                .unwrap()
                 .mode(mode)
                 .execute()
                 .await

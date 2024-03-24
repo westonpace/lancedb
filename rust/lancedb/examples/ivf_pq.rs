@@ -87,6 +87,7 @@ async fn create_table(db: &Connection) -> Result<Table> {
     let initial_data: Box<dyn RecordBatchReader + Send> = create_some_records()?;
     let tbl = db
         .create_table("my_table", Box::new(initial_data))
+        .unwrap()
         .execute()
         .await
         .unwrap();

@@ -125,6 +125,7 @@ impl Connection {
         let tbl = self
             .get_inner()?
             .create_table(&name, batches)
+            .unwrap()
             .mode(mode)
             .execute()
             .await

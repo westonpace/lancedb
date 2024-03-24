@@ -19,7 +19,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 use arrow_array::{RecordBatchIterator, RecordBatchReader};
-use arrow_schema::SchemaRef;
+use arrow_schema::{Field, SchemaRef};
 use lance::dataset::{ReadParams, WriteMode};
 use lance::io::{ObjectStore, ObjectStoreParams, WrappingObjectStore};
 use object_store::{
@@ -28,9 +28,12 @@ use object_store::{
 use snafu::prelude::*;
 
 use crate::arrow::IntoArrow;
+use crate::embeddings::EmbeddingsRegistry;
 use crate::error::{CreateDirSnafu, Error, InvalidTableNameSnafu, Result};
 use crate::io::object_store::MirroringObjectStoreWrapper;
-use crate::table::{NativeTable, WriteOptions};
+use crate::table::{
+    ColumnDefinition, ColumnKind, EmbeddingDefinition, NativeTable, TableDefinition, WriteOptions,
+};
 use crate::utils::validate_table_name;
 use crate::Table;
 
@@ -127,26 +130,32 @@ impl IntoArrow for NoData {
 }
 
 /// A builder for configuring a [`Connection::create_table`] operation
-pub struct CreateTableBuilder<const HAS_DATA: bool, T: IntoArrow> {
+pub struct CreateTableBuilder<const HAS_DATA: bool> {
     parent: Arc<dyn ConnectionInternal>,
     pub(crate) name: String,
-    pub(crate) data: Option<T>,
-    pub(crate) schema: Option<SchemaRef>,
+    pub(crate) data: Option<Box<dyn RecordBatchReader + Send>>,
     pub(crate) mode: CreateTableMode,
     pub(crate) write_options: WriteOptions,
+    pub(crate) table_definition: TableDefinition,
 }
 
 // Builder methods that only apply when we have initial data
-impl<T: IntoArrow> CreateTableBuilder<true, T> {
-    fn new(parent: Arc<dyn ConnectionInternal>, name: String, data: T) -> Self {
-        Self {
+impl CreateTableBuilder<true> {
+    fn try_new(
+        parent: Arc<dyn ConnectionInternal>,
+        name: String,
+        data: impl IntoArrow,
+    ) -> Result<Self> {
+        let data = data.into_arrow()?;
+        let table_definition = TableDefinition::new_from_schema(data.schema().clone());
+        Ok(Self {
             parent,
             name,
             data: Some(data),
-            schema: None,
             mode: CreateTableMode::default(),
             write_options: WriteOptions::default(),
-        }
+            table_definition,
+        })
     }
 
     /// Apply the given write options when writing the initial data
@@ -158,39 +167,34 @@ impl<T: IntoArrow> CreateTableBuilder<true, T> {
     /// Execute the create table operation
     pub async fn execute(self) -> Result<Table> {
         let parent = self.parent.clone();
-        let (data, builder) = self.extract_data()?;
+        let (data, builder) = self.extract_data();
         parent.do_create_table(builder, data).await
     }
 
-    fn extract_data(
-        mut self,
-    ) -> Result<(
-        Box<dyn RecordBatchReader + Send>,
-        CreateTableBuilder<false, NoData>,
-    )> {
-        let data = self.data.take().unwrap().into_arrow()?;
-        let builder = CreateTableBuilder::<false, NoData> {
+    fn extract_data(self) -> (Box<dyn RecordBatchReader + Send>, CreateTableBuilder<false>) {
+        let builder = CreateTableBuilder::<false> {
             parent: self.parent,
             name: self.name,
             data: None,
-            schema: self.schema,
             mode: self.mode,
             write_options: self.write_options,
+            table_definition: self.table_definition,
         };
-        Ok((data, builder))
+        (self.data.unwrap(), builder)
     }
 }
 
 // Builder methods that only apply when we do not have initial data
-impl CreateTableBuilder<false, NoData> {
+impl CreateTableBuilder<false> {
     fn new(parent: Arc<dyn ConnectionInternal>, name: String, schema: SchemaRef) -> Self {
+        let table_definition = TableDefinition::new_from_schema(schema);
         Self {
             parent,
             name,
             data: None,
-            schema: Some(schema),
             mode: CreateTableMode::default(),
             write_options: WriteOptions::default(),
+            table_definition,
         }
     }
 
@@ -200,13 +204,68 @@ impl CreateTableBuilder<false, NoData> {
     }
 }
 
-impl<const HAS_DATA: bool, T: IntoArrow> CreateTableBuilder<HAS_DATA, T> {
+impl<const HAS_DATA: bool> CreateTableBuilder<HAS_DATA> {
     /// Set the mode for creating the table
     ///
     /// This controls what happens if a table with the given name already exists
     pub fn mode(mut self, mode: CreateTableMode) -> Self {
         self.mode = mode;
         self
+    }
+
+    pub fn add_embedding(mut self, definition: EmbeddingDefinition) -> Result<Self> {
+        let src_column = self
+            .table_definition
+            .schema
+            .column_with_name(&definition.source_column)
+            .ok_or_else(|| Error::InvalidInput {
+                message: format!(
+                    "source column '{}' does not exist in the table",
+                    definition.source_column
+                ),
+            })?
+            .1;
+        // Early verification of the embedding name
+        let embedding_func = self
+            .parent
+            .embeddings_registry()
+            .get(&definition.embedding_name)
+            .ok_or_else(|| Error::InvalidInput {
+                message: format!(
+                    "There is no embedding named {} in the connection's embeddings registry",
+                    definition.embedding_name
+                ),
+            })?;
+        let mut fields = self.table_definition.schema.fields().to_vec();
+        let field_name = definition
+            .dest_column
+            .as_ref()
+            .cloned()
+            .unwrap_or_else(|| format!("{}_embedding", src_column.name()));
+        if self
+            .table_definition
+            .schema
+            .field_with_name(&field_name)
+            .is_ok()
+        {
+            return Err(Error::InvalidInput {
+                message: format!(
+                    "The embedding would have name '{}' but a column with that name already exists in the table",
+                    field_name
+                ),
+            });
+        }
+        fields.push(Arc::new(Field::new(
+            field_name,
+            embedding_func.dest_type().clone(),
+            src_column.is_nullable(),
+        )));
+        self.table_definition
+            .column_definitions
+            .push(ColumnDefinition {
+                kind: ColumnKind::Embedding(definition),
+            });
+        Ok(self)
     }
 }
 
@@ -262,23 +321,21 @@ impl OpenTableBuilder {
 pub(crate) trait ConnectionInternal:
     Send + Sync + std::fmt::Debug + std::fmt::Display + 'static
 {
+    fn embeddings_registry(&self) -> &EmbeddingsRegistry;
     async fn table_names(&self, options: TableNamesBuilder) -> Result<Vec<String>>;
     async fn do_create_table(
         &self,
-        options: CreateTableBuilder<false, NoData>,
+        options: CreateTableBuilder<false>,
         data: Box<dyn RecordBatchReader + Send>,
     ) -> Result<Table>;
     async fn do_open_table(&self, options: OpenTableBuilder) -> Result<Table>;
     async fn drop_table(&self, name: &str) -> Result<()>;
     async fn drop_db(&self) -> Result<()>;
 
-    async fn do_create_empty_table(
-        &self,
-        options: CreateTableBuilder<false, NoData>,
-    ) -> Result<Table> {
+    async fn do_create_empty_table(&self, options: CreateTableBuilder<false>) -> Result<Table> {
         let batches = Box::new(RecordBatchIterator::new(
             vec![],
-            options.schema.as_ref().unwrap().clone(),
+            options.table_definition.schema.clone(),
         ));
         self.do_create_table(options, batches).await
     }
@@ -314,6 +371,8 @@ impl Connection {
 
     /// Create a new table from data
     ///
+    /// This will return an error if conversion of the initial data into Arrow fails
+    ///
     /// # Parameters
     ///
     /// * `name` - The name of the table
@@ -322,8 +381,8 @@ impl Connection {
         &self,
         name: impl Into<String>,
         initial_data: T,
-    ) -> CreateTableBuilder<true, T> {
-        CreateTableBuilder::<true, T>::new(self.internal.clone(), name.into(), initial_data)
+    ) -> Result<CreateTableBuilder<true>> {
+        CreateTableBuilder::<true>::try_new(self.internal.clone(), name.into(), initial_data)
     }
 
     /// Create an empty table with a given schema
@@ -336,8 +395,8 @@ impl Connection {
         &self,
         name: impl Into<String>,
         schema: SchemaRef,
-    ) -> CreateTableBuilder<false, NoData> {
-        CreateTableBuilder::<false, NoData>::new(self.internal.clone(), name.into(), schema)
+    ) -> CreateTableBuilder<false> {
+        CreateTableBuilder::<false>::new(self.internal.clone(), name.into(), schema)
     }
 
     /// Open an existing table in the database
@@ -522,6 +581,7 @@ struct Database {
     pub(crate) store_wrapper: Option<Arc<dyn WrappingObjectStore>>,
 
     read_consistency_interval: Option<std::time::Duration>,
+    embeddings_registry: EmbeddingsRegistry,
 }
 
 impl std::fmt::Display for Database {
@@ -641,6 +701,7 @@ impl Database {
                     object_store,
                     store_wrapper: write_store_wrapper,
                     read_consistency_interval: options.read_consistency_interval,
+                    embeddings_registry: EmbeddingsRegistry::new(),
                 })
             }
             Err(_) => Self::open_path(uri, options.read_consistency_interval).await,
@@ -662,6 +723,7 @@ impl Database {
             object_store,
             store_wrapper: None,
             read_consistency_interval,
+            embeddings_registry: EmbeddingsRegistry::new(),
         })
     }
 
@@ -702,6 +764,10 @@ impl Database {
 
 #[async_trait::async_trait]
 impl ConnectionInternal for Database {
+    fn embeddings_registry(&self) -> &EmbeddingsRegistry {
+        &self.embeddings_registry
+    }
+
     async fn table_names(&self, options: TableNamesBuilder) -> Result<Vec<String>> {
         let mut f = self
             .object_store
@@ -734,7 +800,7 @@ impl ConnectionInternal for Database {
 
     async fn do_create_table(
         &self,
-        options: CreateTableBuilder<false, NoData>,
+        options: CreateTableBuilder<false>,
         data: Box<dyn RecordBatchReader + Send>,
     ) -> Result<Table> {
         let table_uri = self.table_uri(&options.name)?;

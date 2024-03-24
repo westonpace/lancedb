@@ -762,6 +762,7 @@ mod tests {
         let conn = connect(uri).execute().await.unwrap();
         let table = conn
             .create_table("my_table", Box::new(batches))
+            .unwrap()
             .execute()
             .await
             .unwrap();
@@ -805,6 +806,7 @@ mod tests {
         let conn = connect(uri).execute().await.unwrap();
         let table = conn
             .create_table("my_table", Box::new(batches))
+            .unwrap()
             .execute()
             .await
             .unwrap();
@@ -851,6 +853,7 @@ mod tests {
         let conn = connect(uri).execute().await.unwrap();
         let table = conn
             .create_table("my_table", Box::new(batches))
+            .unwrap()
             .execute()
             .await
             .unwrap();
@@ -894,6 +897,7 @@ mod tests {
         let conn = connect(uri).execute().await.unwrap();
         let table = conn
             .create_table("my_table", Box::new(batches))
+            .unwrap()
             .execute()
             .await
             .unwrap();
@@ -949,6 +953,7 @@ mod tests {
         let batches = make_non_empty_batches();
         let conn = connect(uri).execute().await.unwrap();
         conn.create_table("my_table", Box::new(batches))
+            .unwrap()
             .execute()
             .await
             .unwrap()

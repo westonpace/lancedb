@@ -81,6 +81,7 @@ impl JsTable {
             let batch_reader = RecordBatchIterator::new(batches.into_iter().map(Ok), schema);
             let table_rst = database
                 .create_table(&table_name, batch_reader)
+                .unwrap()
                 .write_options(WriteOptions {
                     lance_write_params: Some(params),
                 })

@@ -113,6 +113,7 @@ async fn create_table(db: &Connection) -> Result<LanceDbTable> {
     let initial_data = create_some_records()?;
     let tbl = db
         .create_table("my_table", initial_data)
+        .unwrap()
         .execute()
         .await
         .unwrap();

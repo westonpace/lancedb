@@ -19,10 +19,11 @@ use std::sync::Arc;
 
 use arrow::array::AsArray;
 use arrow::datatypes::Float32Type;
-use arrow_array::{RecordBatchIterator, RecordBatchReader};
+use arrow_array::{RecordBatch, RecordBatchIterator, RecordBatchReader};
 use arrow_schema::{DataType, Field, Schema, SchemaRef};
 use async_trait::async_trait;
 use chrono::Duration;
+use futures::{StreamExt, TryFutureExt, TryStreamExt};
 use lance::dataset::builder::DatasetBuilder;
 use lance::dataset::cleanup::RemovalStats;
 use lance::dataset::optimize::{
@@ -40,9 +41,10 @@ use lance::io::WrappingObjectStore;
 use lance_index::IndexType;
 use lance_index::{optimize::OptimizeOptions, DatasetIndexExt};
 use log::info;
+use serde::{Deserialize, Serialize};
 use snafu::whatever;
 
-use crate::arrow::IntoArrow;
+use crate::arrow::{IntoArrow, SendableRecordBatchStream, SimpleRecordBatchStream};
 use crate::connection::NoData;
 use crate::error::{Error, Result};
 use crate::index::vector::{IvfPqIndexBuilder, VectorIndex, VectorIndexStatistics};
@@ -61,6 +63,110 @@ use self::merge::MergeInsertBuilder;
 
 pub(crate) mod dataset;
 pub mod merge;
+
+/// Defines an embedding from input data into a lower-dimensional space
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EmbeddingDefinition {
+    /// The name of the column in the input data
+    pub source_column: String,
+    /// The name of the embedding column, if not specified
+    /// it will be the source column with `_embedding` appended
+    pub dest_column: Option<String>,
+    /// The name of the embedding function to apply
+    pub embedding_name: String,
+}
+
+/// Defines the type of column
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum ColumnKind {
+    /// Columns populated by data from the user (this is the most common case)
+    Physical,
+    /// Columns populated by applying an embedding function to the input
+    Embedding(EmbeddingDefinition),
+}
+
+/// Defines a column in a table
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ColumnDefinition {
+    /// The source of the column data
+    pub kind: ColumnKind,
+}
+
+#[derive(Debug, Clone)]
+pub struct TableDefinition {
+    pub column_definitions: Vec<ColumnDefinition>,
+    pub schema: SchemaRef,
+}
+
+impl TableDefinition {
+    pub fn new(schema: SchemaRef, column_definitions: Vec<ColumnDefinition>) -> Self {
+        Self {
+            column_definitions,
+            schema,
+        }
+    }
+
+    pub fn new_from_schema(schema: SchemaRef) -> Self {
+        let column_definitions = schema
+            .fields()
+            .iter()
+            .map(|_| ColumnDefinition {
+                kind: ColumnKind::Physical,
+            })
+            .collect();
+        Self::new(schema, column_definitions)
+    }
+
+    pub fn try_from_rich_schema(schema: SchemaRef) -> Result<Self> {
+        let column_definitions = schema.metadata.get("lancedb::column_definitions");
+        if let Some(column_definitions) = column_definitions {
+            let column_definitions: Vec<ColumnDefinition> =
+                serde_json::from_str(column_definitions).map_err(|e| Error::Runtime {
+                    message: format!("Failed to deserialize column definitions: {}", e),
+                })?;
+            Ok(TableDefinition::new(schema, column_definitions))
+        } else {
+            let column_definitions = schema
+                .fields()
+                .iter()
+                .map(|_| ColumnDefinition {
+                    kind: ColumnKind::Physical,
+                })
+                .collect();
+            Ok(TableDefinition::new(schema, column_definitions))
+        }
+    }
+
+    pub fn into_rich_schema(self) -> SchemaRef {
+        // We have full control over the structure of column definitions.  This should
+        // not fail, except for a bug
+        let lancedb_metadata = serde_json::to_string(&self.column_definitions).unwrap();
+        let mut schema_with_metadata = (*self.schema).clone();
+        schema_with_metadata
+            .metadata
+            .insert("lancedb::column_definitions".to_string(), lancedb_metadata);
+        Arc::new(schema_with_metadata)
+    }
+}
+
+struct DataTransformer {
+    definition: TableDefinition,
+}
+
+impl DataTransformer {
+    fn new(definition: TableDefinition) -> Self {
+        Self { definition }
+    }
+
+    async fn transform_batch(&self, batch: RecordBatch) -> Result<RecordBatch> {}
+
+    fn transform(&self, data: SendableRecordBatchStream) -> SendableRecordBatchStream {
+        let input_schema = data.schema();
+        let output_schema = self.definition.schema.clone();
+        let transformed = data.try_filter_map(|batch| self.transform_batch(batch).map_ok(Some));
+        Box::pin(SimpleRecordBatchStream::new(transformed, output_schema))
+    }
+}
 
 /// Optimize the dataset.
 ///
@@ -241,6 +347,10 @@ pub(crate) trait TableInternal: std::fmt::Display + std::fmt::Debug + Send + Syn
     fn name(&self) -> &str;
     /// Get the arrow [Schema] of the table.
     async fn schema(&self) -> Result<SchemaRef>;
+    async fn definition(&self) -> Result<TableDefinition> {
+        let schema = self.schema().await?;
+        TableDefinition::try_from_rich_schema(schema)
+    }
     /// Count the number of rows in this table.
     async fn count_rows(&self, filter: Option<String>) -> Result<usize>;
     async fn plain_query(
@@ -1613,7 +1723,12 @@ mod tests {
 
         let batches = make_test_batches();
         let schema = batches.schema().clone();
-        let table = conn.create_table("test", batches).execute().await.unwrap();
+        let table = conn
+            .create_table("test", batches)
+            .unwrap()
+            .execute()
+            .await
+            .unwrap();
         assert_eq!(table.count_rows(None).await.unwrap(), 10);
 
         let new_batches = RecordBatchIterator::new(
@@ -1642,6 +1757,7 @@ mod tests {
         let batches = merge_insert_test_batches(0, 0);
         let table = conn
             .create_table("my_table", batches)
+            .unwrap()
             .execute()
             .await
             .unwrap();
@@ -1689,7 +1805,12 @@ mod tests {
 
         let batches = make_test_batches();
         let schema = batches.schema().clone();
-        let table = conn.create_table("test", batches).execute().await.unwrap();
+        let table = conn
+            .create_table("test", batches)
+            .unwrap()
+            .execute()
+            .await
+            .unwrap();
         assert_eq!(table.count_rows(None).await.unwrap(), 10);
 
         let batches = vec![RecordBatch::try_new(
@@ -1768,6 +1889,7 @@ mod tests {
 
         let table = conn
             .create_table("my_table", record_batch_iter)
+            .unwrap()
             .execute()
             .await
             .unwrap();
@@ -1905,6 +2027,7 @@ mod tests {
 
         let table = conn
             .create_table("my_table", record_batch_iter)
+            .unwrap()
             .execute()
             .await
             .unwrap();
@@ -2026,6 +2149,7 @@ mod tests {
             .unwrap();
         let tbl = conn
             .create_table("my_table", make_test_batches())
+            .unwrap()
             .execute()
             .await
             .unwrap();
@@ -2065,6 +2189,7 @@ mod tests {
         let batches = make_test_batches();
 
         conn.create_table("my_table", batches)
+            .unwrap()
             .execute()
             .await
             .unwrap();
@@ -2157,7 +2282,12 @@ mod tests {
             schema,
         );
 
-        let table = conn.create_table("test", batches).execute().await.unwrap();
+        let table = conn
+            .create_table("test", batches)
+            .unwrap()
+            .execute()
+            .await
+            .unwrap();
 
         assert_eq!(
             table
@@ -2256,6 +2386,7 @@ mod tests {
                 "my_table",
                 RecordBatchIterator::new(vec![Ok(batch.clone())], batch.schema()),
             )
+            .unwrap()
             .execute()
             .await
             .unwrap();
@@ -2352,6 +2483,7 @@ mod tests {
             .unwrap();
         let table = conn
             .create_table("my_table", some_sample_data())
+            .unwrap()
             .execute()
             .await
             .unwrap();

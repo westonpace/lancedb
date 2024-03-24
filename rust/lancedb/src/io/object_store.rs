@@ -373,6 +373,7 @@ mod test {
 
         let res = db
             .create_table("test", Box::new(datagen.batch(100)))
+            .unwrap()
             .write_options(WriteOptions {
                 lance_write_params: Some(param),
             })

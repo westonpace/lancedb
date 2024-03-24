@@ -82,6 +82,12 @@ pub struct SimpleRecordBatchStream<S: Stream<Item = Result<arrow_array::RecordBa
     pub stream: S,
 }
 
+impl<S: Stream<Item = Result<arrow_array::RecordBatch>>> SimpleRecordBatchStream<S> {
+    pub fn new(stream: S, schema: Arc<arrow_schema::Schema>) -> Self {
+        Self { schema, stream }
+    }
+}
+
 impl<S: Stream<Item = Result<arrow_array::RecordBatch>>> Stream for SimpleRecordBatchStream<S> {
     type Item = Result<arrow_array::RecordBatch>;
 
