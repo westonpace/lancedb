@@ -1,6 +1,7 @@
 name: NPM Publish
 
 on:
+  workflow_dispatch:
   release:
     types: [published]
 
@@ -78,7 +79,7 @@ jobs:
             runner: macos-14
     runs-on: ${{ matrix.config.runner }}
     # Only runs on tags that matches the make-release action
-    if: startsWith(github.ref, 'refs/tags/v')
+    # if: startsWith(github.ref, 'refs/tags/v')
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -142,16 +143,16 @@ jobs:
     name: nodejs-linux (${{ matrix.config.arch}}-unknown-linux-gnu
     runs-on: ${{ matrix.config.runner }}
     # Only runs on tags that matches the make-release action
-    if: startsWith(github.ref, 'refs/tags/v')
+    # if: startsWith(github.ref, 'refs/tags/v')
     strategy:
       fail-fast: false
       matrix:
         config:
           - arch: x86_64
             runner: ubuntu-latest
-          - arch: aarch64
-            # For successful fat LTO builds, we need a large runner to avoid OOM errors.
-            runner: buildjet-16vcpu-ubuntu-2204-arm
+          # - arch: aarch64
+          #   # For successful fat LTO builds, we need a large runner to avoid OOM errors.
+          #   runner: buildjet-16vcpu-ubuntu-2204-arm
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -225,7 +226,7 @@ jobs:
   nodejs-windows:
     runs-on: windows-2022
     # Only runs on tags that matches the make-release action
-    if: startsWith(github.ref, 'refs/tags/v')
+    # if: startsWith(github.ref, 'refs/tags/v')
     strategy:
       fail-fast: false
       matrix:
@@ -283,7 +284,7 @@ jobs:
     needs: [nodejs-macos, nodejs-linux, nodejs-windows]
     runs-on: ubuntu-latest
     # Only runs on tags that matches the make-release action
-    if: startsWith(github.ref, 'refs/tags/v')
+    # if: startsWith(github.ref, 'refs/tags/v')
     defaults:
       run:
         shell: bash
