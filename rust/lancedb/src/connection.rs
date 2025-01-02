@@ -27,6 +27,7 @@ use object_store::{aws::AwsCredential, local::LocalFileSystem};
 use snafu::prelude::*;
 
 use crate::arrow::IntoArrow;
+use crate::catalog::{Catalog, ListingCatalog};
 use crate::embeddings::{
     EmbeddingDefinition, EmbeddingFunction, EmbeddingRegistry, MemoryRegistry, WithEmbeddings,
 };
@@ -783,6 +784,7 @@ struct Database {
     // Storage options to be inherited by tables created from this connection
     storage_options: HashMap<String, String>,
     embedding_registry: Arc<dyn EmbeddingRegistry>,
+    catalog: Arc<dyn Catalog>,
 }
 
 impl std::fmt::Display for Database {
@@ -899,12 +901,13 @@ impl Database {
                 Ok(Self {
                     uri: table_base_uri,
                     query_string,
-                    base_path,
-                    object_store,
+                    base_path: base_path.clone(),
+                    object_store: object_store.clone(),
                     store_wrapper: write_store_wrapper,
                     read_consistency_interval: options.read_consistency_interval,
                     storage_options,
                     embedding_registry,
+                    catalog: Arc::new(ListingCatalog::new(base_path, object_store)),
                 })
             }
             Err(_) => {
@@ -934,12 +937,13 @@ impl Database {
         Ok(Self {
             uri: path.to_string(),
             query_string: None,
-            base_path,
-            object_store,
+            base_path: base_path.clone(),
+            object_store: object_store.clone(),
             store_wrapper: None,
             read_consistency_interval,
             storage_options: HashMap::new(),
             embedding_registry,
+            catalog: Arc::new(ListingCatalog::new(base_path, object_store)),
         })
     }
 
@@ -984,33 +988,9 @@ impl ConnectionInternal for Database {
         self.embedding_registry.as_ref()
     }
     async fn table_names(&self, options: TableNamesBuilder) -> Result<Vec<String>> {
-        let mut f = self
-            .object_store
-            .read_dir(self.base_path.clone())
-            .await?
-            .iter()
-            .map(Path::new)
-            .filter(|path| {
-                let is_lance = path
-                    .extension()
-                    .and_then(|e| e.to_str())
-                    .map(|e| e == LANCE_EXTENSION);
-                is_lance.unwrap_or(false)
-            })
-            .filter_map(|p| p.file_stem().and_then(|s| s.to_str().map(String::from)))
-            .collect::<Vec<String>>();
-        f.sort();
-        if let Some(start_after) = options.start_after {
-            let index = f
-                .iter()
-                .position(|name| name.as_str() > start_after.as_str())
-                .unwrap_or(f.len());
-            f.drain(0..index);
-        }
-        if let Some(limit) = options.limit {
-            f.truncate(limit as usize);
-        }
-        Ok(f)
+        self.catalog
+            .list_tables(options.start_after, options.limit)
+            .await
     }
 
     async fn do_create_table(
@@ -1090,22 +1070,8 @@ impl ConnectionInternal for Database {
         }
     }
 
-    async fn do_open_table(&self, mut options: OpenTableBuilder) -> Result<Table> {
-        let table_uri = self.table_uri(&options.name)?;
-
-        // Inherit storage options from the connection
-        let storage_options = options
-            .lance_read_params
-            .get_or_insert_with(Default::default)
-            .store_options
-            .get_or_insert_with(Default::default)
-            .storage_options
-            .get_or_insert_with(Default::default);
-        for (key, value) in self.storage_options.iter() {
-            if !storage_options.contains_key(key) {
-                storage_options.insert(key.clone(), value.clone());
-            }
-        }
+    async fn do_open_table(&self, options: OpenTableBuilder) -> Result<Table> {
+        let table_reference = self.catalog.get_table(&options.name).await?;
 
         // Some ReadParams are exposed in the OpenTableBuilder, but we also
         // let the user provide their own ReadParams.
@@ -1113,16 +1079,18 @@ impl ConnectionInternal for Database {
         // If we have a user provided ReadParams use that
         // If we don't then start with the default ReadParams and customize it with
         // the options from the OpenTableBuilder
-        let read_params = options.lance_read_params.unwrap_or_else(|| ReadParams {
+        let mut read_params = options.lance_read_params.unwrap_or_else(|| ReadParams {
             index_cache_size: options.index_cache_size as usize,
             ..Default::default()
         });
 
+        read_params.store_options = table_reference.store_params;
+
         let native_table = Arc::new(
             NativeTable::open_with_params(
-                &table_uri,
+                &table_reference.uri,
                 &options.name,
-                self.store_wrapper.clone(),
+                table_reference.store_wrapper,
                 Some(read_params),
                 self.read_consistency_interval,
             )
