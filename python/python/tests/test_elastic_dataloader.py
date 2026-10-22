@@ -1920,6 +1920,111 @@ def test_transform_none_yields_dicts(lance_table):
     assert all("id" in item for item in items)
 
 
+def test_row_transform_is_applied(lance_table):
+    """row_transform is called once per row with a plain dict and its return
+    value (also a dict) is yielded."""
+
+    def double_id(row: dict) -> dict:
+        return {"id": row["id"], "doubled": row["id"] * 2}
+
+    ds = StreamingDataset(
+        lance_table,
+        num_splits=NUM_SPLITS,
+        shuffle_seed=SHUFFLE_SEED,
+        row_transform=double_id,
+    )
+    items = list(ds)
+
+    assert len(items) == NUM_ROWS
+    assert all(isinstance(item, dict) for item in items)
+    assert sorted(item["id"] for item in items) == list(range(NUM_ROWS))
+    assert all(item["doubled"] == item["id"] * 2 for item in items)
+
+
+def test_row_transform_and_transform_are_mutually_exclusive(lance_table):
+    with pytest.raises(ValueError, match="row_transform"):
+        StreamingDataset(
+            lance_table,
+            num_splits=NUM_SPLITS,
+            transform=lambda batch: batch.to_pylist(),
+            row_transform=lambda row: row,
+        )
+
+
+def test_row_transform_rejects_pack_sequences(lance_table):
+    with pytest.raises(ValueError, match="row_transform cannot be combined"):
+        StreamingDataset(
+            lance_table,
+            num_splits=NUM_SPLITS,
+            row_transform=lambda row: row,
+            pack_sequences=4,
+            eos_id=-1,
+            pad_id=-2,
+            blocks_per_epoch=NUM_SPLITS,
+            columns=["id"],
+        )
+
+
+def test_eager_blobs_requires_row_transform(lance_table):
+    with pytest.raises(ValueError, match="eager_blobs requires row_transform"):
+        StreamingDataset(
+            lance_table,
+            num_splits=NUM_SPLITS,
+            eager_blobs=True,
+        )
+
+
+@pytest.fixture
+def lance_blob_table(tmp_path):
+    """A table with an integer id column and a lance blob v2 column."""
+    db = lancedb.connect(tmp_path)
+    schema = pa.schema([pa.field("id", pa.int64()), lancedb.blob("payload")])
+    table = db.create_table("blobs", schema=schema)
+    table.add([{"id": i, "payload": f"row-{i}".encode()} for i in range(NUM_SPLITS)])
+    return table
+
+
+def test_row_transform_eager_blobs_yields_bytes(lance_blob_table):
+    def identity(row: dict) -> dict:
+        return row
+
+    ds = StreamingDataset(
+        lance_blob_table,
+        num_splits=NUM_SPLITS,
+        shuffle_seed=SHUFFLE_SEED,
+        row_transform=identity,
+        eager_blobs=True,
+    )
+    items = {item["id"]: item for item in ds}
+
+    assert len(items) == NUM_SPLITS
+    assert "_rowid" not in next(iter(items.values()))
+    for i, item in items.items():
+        assert isinstance(item["payload"], bytes)
+        assert item["payload"] == f"row-{i}".encode()
+
+
+def test_row_transform_lazy_blobs_yields_blob_file(lance_blob_table):
+    from lancedb._blob import BlobFile
+
+    def identity(row: dict) -> dict:
+        return row
+
+    ds = StreamingDataset(
+        lance_blob_table,
+        num_splits=NUM_SPLITS,
+        shuffle_seed=SHUFFLE_SEED,
+        row_transform=identity,
+        eager_blobs=False,
+    )
+    items = {item["id"]: item for item in ds}
+
+    assert len(items) == NUM_SPLITS
+    for i, item in items.items():
+        assert isinstance(item["payload"], BlobFile)
+        assert item["payload"].read() == f"row-{i}".encode()
+
+
 @pytest.mark.parametrize(
     ("configured", "detected", "expected"),
     [(2, 8, 2), (None, 3, 3), (None, None, 1)],

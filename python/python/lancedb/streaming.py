@@ -208,6 +208,26 @@ class _ConsumerCommitIterator:
         return getattr(self._iterator, name)
 
 
+def _assign_blob_values(rows: list[dict], path: str, values: list) -> None:
+    """Set a (possibly dotted) blob column's fetched value on each row dict.
+
+    ``values`` must be parallel to ``rows``.  A dotted path addresses a field
+    nested inside struct columns, which ``RecordBatch.to_pylist()`` already
+    materialises as nested dicts; a null parent struct has no field to set,
+    so that row is left unchanged.
+    """
+    *struct_path, leaf = path.split(".")
+    for row, value in zip(rows, values):
+        target = row
+        for part in struct_path:
+            if not isinstance(target, dict):
+                target = None
+                break
+            target = target.get(part)
+        if isinstance(target, dict):
+            target[leaf] = value
+
+
 class StreamingDataset(IterableDataset):
     """An elastic, resumable PyTorch IterableDataset backed by a LanceDB table.
 
@@ -304,7 +324,24 @@ class StreamingDataset(IterableDataset):
         Optional callable applied to each ``pyarrow.RecordBatch`` before rows
         are yielded.  Receives one batch at a time and must return an iterable
         whose length equals the number of rows in the batch.  When ``None``
-        (the default) rows are returned as plain Python dicts.
+        (the default) rows are returned as plain Python dicts.  Cannot be
+        combined with ``row_transform``.
+    row_transform:
+        Optional callable applied to each row individually instead of to
+        whole batches.  Each ``pyarrow.RecordBatch`` is first converted to a
+        list of plain Python dicts (one per row, as with
+        ``pyarrow.RecordBatch.to_pylist``); ``row_transform`` is then called
+        once per row with that dict and must return a dict.  Cannot be
+        combined with ``transform`` or ``pack_sequences``.
+    eager_blobs:
+        Only meaningful with ``row_transform``.  Controls how blob columns
+        (see :meth:`~lancedb.table.Table.blob_columns`) appear in the dict
+        passed to ``row_transform``.  When ``True``, blob values are eagerly
+        fetched and the dict field holds ``bytes`` (or ``None`` for a null
+        blob).  When ``False`` (the default), blob values are not fetched up
+        front and the dict field instead holds a lazy, seekable
+        :class:`~lancedb._blob.BlobFile` (or ``None``) whose bytes are only
+        read from storage when the field is actually read.
     transform_parallelism:
         Maximum number of transforms to run concurrently.  Must be greater
         than zero.  When ``None`` (the default), uses ``os.cpu_count()`` or 1
@@ -422,6 +459,8 @@ class StreamingDataset(IterableDataset):
         shuffle_clump_size: Optional[int] = None,
         filter: Optional[str] = None,
         transform: Optional[Callable] = None,
+        row_transform: Optional[Callable[[dict], dict]] = None,
+        eager_blobs: bool = False,
         transform_parallelism: Optional[int] = None,
         pack_sequences: Optional[int] = None,
         eos_id: Optional[int] = None,
@@ -481,6 +520,8 @@ class StreamingDataset(IterableDataset):
                     )
             if transform is not None:
                 raise ValueError("transform cannot be combined with pack_sequences")
+            if row_transform is not None:
+                raise ValueError("row_transform cannot be combined with pack_sequences")
             if columns is None or len(columns) != 1:
                 raise ValueError(
                     "pack_sequences requires columns to name exactly one "
@@ -503,6 +544,10 @@ class StreamingDataset(IterableDataset):
                 )
         elif blocks_per_epoch is not None:
             raise ValueError("blocks_per_epoch requires pack_sequences")
+        if transform is not None and row_transform is not None:
+            raise ValueError("transform cannot be combined with row_transform")
+        if eager_blobs and row_transform is None:
+            raise ValueError("eager_blobs requires row_transform")
         if on_transform_error not in ("raise", "skip", "warn") and not callable(
             on_transform_error
         ):
@@ -526,6 +571,14 @@ class StreamingDataset(IterableDataset):
         self._shuffle_clump_size = shuffle_clump_size
         self._filter = filter
         self._transform = transform
+        self._row_transform = row_transform
+        self._eager_blobs = eager_blobs
+        self._row_transform_blob_columns: list[str] = []
+        if row_transform is not None:
+            requested = set(columns) if columns is not None else None
+            for blob_column in table.blob_columns():
+                if requested is None or blob_column.split(".")[0] in requested:
+                    self._row_transform_blob_columns.append(blob_column)
         self._transform_parallelism = transform_parallelism
         self._pack_sequences = pack_sequences
         self._eos_id = eos_id
@@ -816,6 +869,18 @@ class StreamingDataset(IterableDataset):
         if not my_splits:
             return
 
+        # row_transform needs row ids to fetch blob columns by row, so widen
+        # the selection to include `_rowid` alongside the requested columns
+        # (unless the caller already asked for `_rowid` explicitly, in which
+        # case it should remain visible in the transformed row).
+        select_columns = self._columns
+        row_transform_added_rowid = False
+        if self._row_transform_blob_columns:
+            select_columns = list(self._columns or self._table.schema.names)
+            if "_rowid" not in select_columns:
+                select_columns.append("_rowid")
+                row_transform_added_rowid = True
+
         # Set identity transform on each Permutation so __getitems__ returns
         # the raw RecordBatch.  Stage 2 applies the real transform.
         permutations: list[Permutation] = []
@@ -825,8 +890,8 @@ class StreamingDataset(IterableDataset):
             perm = Permutation.from_tables(
                 self._table, self._perm_table, split=split_idx
             )
-            if self._columns is not None:
-                perm = perm.select_columns(self._columns)
+            if select_columns is not None:
+                perm = perm.select_columns(select_columns)
             perm = perm.with_transform(Transforms.arrow2arrow)
             sample_count = self._resume_samples.get(split_idx, self._resume_offset)
             # Both modes resume from absolute permutation positions. Packing
@@ -869,6 +934,28 @@ class StreamingDataset(IterableDataset):
                 return cast(list[list[int]], token_column.to_pylist())
 
             final_transform = arrow_tokens
+        elif self._row_transform is not None:
+            row_transform = self._row_transform
+            blob_columns = self._row_transform_blob_columns
+            eager_blobs = self._eager_blobs
+            table = self._table
+
+            def apply_row_transform(batch: pa.RecordBatch) -> list[dict]:
+                rows = batch.to_pylist()
+                if blob_columns:
+                    row_ids = batch.column("_rowid").to_pylist()
+                    for column in blob_columns:
+                        if eager_blobs:
+                            values = table.fetch_blobs(column, row_ids).to_pylist()
+                        else:
+                            values = table.fetch_blob_files(column, row_ids)
+                        _assign_blob_values(rows, column, values)
+                    if row_transform_added_rowid:
+                        for row in rows:
+                            row.pop("_rowid", None)
+                return [row_transform(row) for row in rows]
+
+            final_transform = apply_row_transform
         else:
             final_transform = (
                 self._transform
